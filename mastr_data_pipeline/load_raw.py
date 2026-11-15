@@ -31,7 +31,6 @@ def load_raw_snapshot(
         bucket=cfg.bucket,
         snapshot_date=snapshot_date,
         dataset=cfg.bq_dataset,
-        table=cfg.bq_table,
         location=cfg.bq_location,
         client=client,
         ingested_at=ingested_at,

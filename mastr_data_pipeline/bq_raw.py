@@ -20,8 +20,6 @@ from mastr_data_pipeline.raw_schema import (
 )
 
 DEFAULT_DATASET = "mastr_raw"
-# Legacy unified table name (kept for migration/docs; loader does not write it).
-DEFAULT_TABLE = "raw_mastr_units"
 DEFAULT_LOCATION = "europe-west3"
 
 
@@ -45,7 +43,7 @@ def gcs_uri(bucket: str, snapshot_date: str, source_file: str) -> str:
     return f"gs://{bucket}/{object_path(snapshot_date, source_file)}"
 
 
-def staging_table_id(snapshot_date: str, table: str = DEFAULT_TABLE) -> str:
+def staging_table_id(snapshot_date: str, table: str) -> str:
     suffix = snapshot_date.replace("-", "")
     return f"{table}__staging_{suffix}"
 
@@ -76,7 +74,7 @@ def ensure_raw_table(
     client: bigquery.Client,
     project_id: str,
     dataset: str,
-    table: str = DEFAULT_TABLE,
+    table: str,
 ) -> None:
     table_ref = fq_table(project_id, dataset, table)
     schema = [
@@ -230,8 +228,7 @@ def validate_staging(
     project_id: str,
     dataset: str,
     snapshot_date: str,
-    staging_tables: dict[str, str] | None = None,
-    staging_table: str | None = None,
+    staging_tables: dict[str, str],
 ) -> dict[str, Any]:
     """
     Validate per-source staging tables before touching production Raw.
@@ -242,19 +239,6 @@ def validate_staging(
       - no duplicate installation IDs within or across the four stagings
     """
     expected = expected_row_counts(snapshot_date)
-    if staging_tables is None:
-        if staging_table is None:
-            raise ValueError("staging_tables or staging_table is required")
-        # Legacy single staging table path (all source_files in one table).
-        return _validate_unified_staging(
-            client,
-            project_id=project_id,
-            dataset=dataset,
-            staging_table=staging_table,
-            snapshot_date=snapshot_date,
-            expected=expected,
-        )
-
     actual_counts: dict[str, int] = {}
     total_rows = 0
     null_or_blank = 0
@@ -303,75 +287,6 @@ def validate_staging(
     )
     """
     distinct_ids = int(list(client.query(distinct_sql).result())[0]["distinct_unit_ids"])
-    if distinct_ids != total_rows:
-        raise ValueError(
-            f"Duplicate installation IDs in staging: total_rows={total_rows}, "
-            f"distinct_unit_ids={distinct_ids}"
-        )
-
-    expected_total = sum(expected.values())
-    if total_rows != expected_total:
-        raise ValueError(
-            f"Staging total rows {total_rows} != expected total {expected_total}"
-        )
-
-    return {
-        "row_counts": actual_counts,
-        "total_rows": total_rows,
-        "distinct_unit_ids": distinct_ids,
-    }
-
-
-def _validate_unified_staging(
-    client: bigquery.Client,
-    *,
-    project_id: str,
-    dataset: str,
-    staging_table: str,
-    snapshot_date: str,
-    expected: dict[str, int],
-) -> dict[str, Any]:
-    """Validate a single staging table that contains all source_file values."""
-    staging_fq = fq_table(project_id, dataset, staging_table)
-
-    counts_sql = f"""
-    SELECT source_file, COUNT(*) AS row_count
-    FROM `{staging_fq}`
-    GROUP BY source_file
-    """
-    counts_rows = list(client.query(counts_sql).result())
-    actual_counts = {r["source_file"]: int(r["row_count"]) for r in counts_rows}
-
-    missing_files = [f for f in SOURCE_FILES if f not in actual_counts]
-    if missing_files:
-        raise ValueError(f"Staging missing source_file(s): {missing_files}")
-
-    count_mismatches = {
-        f: {"expected": expected[f], "actual": actual_counts.get(f, 0)}
-        for f in SOURCE_FILES
-        if actual_counts.get(f, 0) != expected[f]
-    }
-    if count_mismatches:
-        raise ValueError(
-            f"Row count mismatch for snapshot {snapshot_date}: {count_mismatches}"
-        )
-
-    quality_sql = f"""
-    SELECT
-      COUNT(*) AS total_rows,
-      COUNTIF({UNIT_ID_FIELD} IS NULL OR TRIM({UNIT_ID_FIELD}) = '') AS null_or_blank_unit_ids,
-      COUNT(DISTINCT {UNIT_ID_FIELD}) AS distinct_unit_ids
-    FROM `{staging_fq}`
-    """
-    quality = list(client.query(quality_sql).result())[0]
-    total_rows = int(quality["total_rows"])
-    null_or_blank = int(quality["null_or_blank_unit_ids"])
-    distinct_ids = int(quality["distinct_unit_ids"])
-
-    if null_or_blank:
-        raise ValueError(
-            f"Staging has {null_or_blank} null/blank installation IDs ({UNIT_ID_FIELD})"
-        )
     if distinct_ids != total_rows:
         raise ValueError(
             f"Duplicate installation IDs in staging: total_rows={total_rows}, "
@@ -451,7 +366,6 @@ def load_snapshot_to_raw(
     bucket: str,
     snapshot_date: str,
     dataset: str = DEFAULT_DATASET,
-    table: str = DEFAULT_TABLE,
     location: str = DEFAULT_LOCATION,
     client: bigquery.Client | None = None,
     ingested_at: datetime | None = None,
@@ -460,14 +374,11 @@ def load_snapshot_to_raw(
     """
     Validate-then-replace loader for one snapshot_date into four Raw tables.
 
-    1) Ensure dataset and split Raw tables exist (legacy unified table untouched)
+    1) Ensure dataset and split Raw tables exist (legacy backup table untouched)
     2) Build per-source staging from GCS Bronze
     3) Validate counts, IDs, duplicates across stagings
     4) Atomically replace each production table for that snapshot only
-
-    ``table`` is retained for API compatibility and is not written.
     """
-    del table  # unused: split Raw tables are authoritative
     bq = client or get_bq_client(project_id, location=location)
     ingested = ingested_at or datetime.now(timezone.utc)
     staging_tables = {

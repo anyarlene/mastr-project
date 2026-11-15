@@ -1,4 +1,6 @@
-# MaStR dbt project — Staging → Intermediate → Marts
+# MaStR dbt project
+# Path: 4 Raw tables → 4 Staging views → Intermediate → Gold
+# Datasets: mastr_staging (default + seeds) / mastr_intermediate / mastr_marts
 name: mastr
 version: 1.0.0
 config-version: 2
@@ -28,6 +30,7 @@ models:
 
 seeds:
   mastr:
+    # Seeds land in the profile default dataset (mastr_staging).
     seed_snapshot_expectations:
       +column_types:
         snapshot_date: date

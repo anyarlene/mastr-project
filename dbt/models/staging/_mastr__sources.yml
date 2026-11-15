@@ -5,8 +5,8 @@ sources:
     description: >
       BigQuery Raw landing for immutable MaStR CSV payloads
       (German STRING columns + lineage), one table per source file.
-      Legacy raw_mastr_units is retained as an archive during migration and is
-      not declared here as an active source.
+      Backup table raw_mastr_units may exist in the dataset but is not an
+      active source and is not declared here.
     database: "{{ target.project }}"
     schema: mastr_raw
     tables:

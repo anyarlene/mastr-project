@@ -1,6 +1,13 @@
 version: 2
 
 models:
+  - name: complete_snapshots
+    description: >
+      Ephemeral completeness helper. A snapshot_date is complete when all four
+      expected source files match seed_snapshot_expectations and Raw, Staging,
+      and Intermediate row counts agree per source_file. Used by dims/mart
+      filters; not materialized as a table.
+
   - name: dim_municipality
     description: >
       Municipality dimension. Includes every municipality_id observed in Intermediate.

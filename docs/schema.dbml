@@ -1,15 +1,24 @@
 //// MaStR star schema (Gold / Marts)
 ////
+//// Pipeline path:
+////   4 CSVs → GCS Bronze → 4 BigQuery Raw tables (mastr_raw)
+////         → 4 Staging views (mastr_staging)
+////         → int_mastr_units (mastr_intermediate; UNION ALL + classification)
+////         → Gold dims / fct / mart (mastr_marts)
+////
 //// Raw German CSVs remain immutable in GCS.
 //// Lineage columns (source_file, snapshot_date, ingested_at) are set at
 //// BigQuery raw load and preserved through dbt.
-//// English names and categorical codes are applied in Staging;
+//// English names and categorical codes are applied in Staging
+//// (shared macro select_stg_mastr_units);
 //// Intermediate adds classification and measure splits;
 //// Marts are English-only analytical tables.
 //// SCD Type 2 is designed for later (dbt snapshots); not implemented in v1.
 ////
 //// Le Wagon layering:
 ////   raw (GCS/BigQuery) → staging → intermediate → dimensions + fact + marts
+////
+//// This file documents Gold only. Raw/Staging live in BigQuery as noted above.
 
 Table dim_municipality {
   municipality_id varchar [pk, note: 'AGS natural key (8-digit)']

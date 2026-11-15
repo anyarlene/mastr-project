@@ -1,0 +1,45 @@
+version: 2
+
+seeds:
+  - name: seed_energy_sources
+    description: >
+      Reference dimension for English energy_source_code values
+      (wind, solar, biomass, battery, hydrogen_storage, other_storage, unknown).
+      Loaded into mastr_staging; consumed by dim_energy_source.
+    columns:
+      - name: energy_source_id
+        description: Surrogate key.
+      - name: energy_source_code
+        description: English energy-source code.
+      - name: energy_source_label
+        description: Human-readable label.
+      - name: energy_source_group
+        description: generation | storage | unknown.
+
+  - name: seed_statuses
+    description: >
+      Reference dimension for English status_code values
+      (operational, planned, decommissioned, unknown).
+      Loaded into mastr_staging; consumed by dim_status.
+    columns:
+      - name: status_id
+        description: Surrogate key.
+      - name: status_code
+        description: English status code.
+      - name: status_label
+        description: Human-readable label.
+      - name: is_operational
+        description: True only for operational.
+
+  - name: seed_snapshot_expectations
+    description: >
+      Expected Raw row counts per (snapshot_date, source_file).
+      Generated from config/snapshots.json (make generate-snapshot-seed).
+      Used by complete_snapshots for load completeness.
+    columns:
+      - name: snapshot_date
+        description: Snapshot partition date.
+      - name: source_file
+        description: wind.csv | solar.csv | biomass.csv | battery.csv.
+      - name: expected_row_count
+        description: Expected number of rows after Raw load.

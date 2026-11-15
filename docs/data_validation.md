@@ -108,7 +108,8 @@ Keep renewable generation power (kW), storage power (kW), and usable storage ene
 
 Original CSVs in GCS remain unchanged.
 
-At BigQuery **raw** load, attach and persist:
+Each CSV loads into its own Raw table (`raw_mastr_wind` / `_solar` / `_biomass` /
+`_storage`). At load, attach and persist:
 
 | Column | Meaning | Example |
 |---|---|---|
@@ -116,13 +117,15 @@ At BigQuery **raw** load, attach and persist:
 | `snapshot_date` | Snapshot partition (folder date) | `2026-11-09` |
 | `ingested_at` | UTC timestamp of the raw load | `2026-11-15T14:00:00Z` |
 
-dbt staging and marts preserve these columns for audit and completeness checks.
+dbt Staging, Intermediate, and Marts preserve these columns for audit and
+completeness checks. Path: **4 Raw tables → 4 Staging views → Intermediate → Gold**.
 
 ## Standardization policy
 
 - **GCS / raw:** German headers and values preserved byte-for-byte (plus checksum validation).
-- **dbt staging + marts:** English column names and English categorical codes.
-- Preserve original German values on dimensions (`source_energy_carrier_de`, `source_storage_technology_de`, `source_value_de`) for audit.
+- **dbt staging:** English column names and English categorical codes via macro `select_stg_mastr_units`.
+- **dbt intermediate + marts:** English-only business classification and measures.
+- Staging keeps German audit columns alongside codes: `status_de`, `energy_carrier_de`, `storage_technology_de`.
 
 ### Category translation
 
@@ -143,11 +146,12 @@ dbt staging and marts preserve these columns for audit and completeness checks.
 
 ## Latest complete snapshot
 
-A `snapshot_date` is **complete** only when all of the following hold in BigQuery raw:
+A `snapshot_date` is **complete** only when all of the following hold:
 
-1. All four expected CSV files were successfully loaded (`wind.csv`, `solar.csv`, `biomass.csv`, `battery.csv`).
-2. Actual loaded row counts match the expected source-file counts for that snapshot (for `2026-11-09`: 278 / 20 861 / 56 / 11 416).
-3. There are no failed or incomplete loads for that snapshot.
+1. All four expected CSV files were successfully loaded into the four Raw tables (`wind.csv`, `solar.csv`, `biomass.csv`, `battery.csv`).
+2. Actual loaded row counts match `config/snapshots.json` / `seed_snapshot_expectations` (for `2026-11-09`: 278 / 20 861 / 56 / 11 416).
+3. Raw, Staging, and Intermediate counts agree per `source_file` (see ephemeral model `complete_snapshots`).
+4. There are no failed or incomplete loads for that snapshot.
 
 Then:
 
@@ -173,13 +177,16 @@ Le Wagon-style star schema — see `docs/schema.dbml`:
 - **Foreign keys:** `municipality_id`, `energy_source_id`, `status_id`
 - **Future SCD Type 2:** dbt snapshots with `valid_from` / `valid_to` / `is_current` — designed, not implemented in v1
 
-### Planned dbt tests (implement later)
+### dbt tests (implemented)
 
-- Unique `(snapshot_date, unit_id)` on `fct_mastr_units`
-- Non-null keys and lineage columns (`snapshot_date`, `unit_id`, `municipality_id`, `energy_source_id`, `status_id`, `source_file`, `ingested_at`, `is_operational`)
-- Relationship tests to all three dimensions
-- Capacity rules by `energy_source_group` (generation vs storage measures)
-- Unique / not-null tests on dimension primary keys and codes
+Singular and generic tests cover:
+
+- Unique `(snapshot_date, unit_id)` on Staging (combined), Intermediate, and `fct_mastr_units`
+- Non-null keys and lineage columns on Staging / Intermediate / fact
+- Relationship tests from fact (and mart) to the three dimensions
+- Capacity / measure-separation rules by `energy_source_group`
+- Completeness alignment via `complete_snapshots` and `seed_snapshot_expectations`
+- Unique / not-null / accepted-values on dimension keys and codes
 
 ## Issues deferred to cleaning / ingestion
 

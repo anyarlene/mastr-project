@@ -50,6 +50,8 @@ def test_ingest_snapshot_calls_upload_for_each_file(tmp_path: Path):
         project_id="test-project",
         bucket="test-bucket",
         raw_dir=tmp_path,
+        bq_dataset="mastr_raw",
+        bq_location="europe-west3",
     )
 
     fake_results = []
@@ -88,24 +90,43 @@ def test_ingest_snapshot_calls_upload_for_each_file(tmp_path: Path):
 def test_get_settings_requires_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("GCP_PROJECT_ID", raising=False)
     monkeypatch.delenv("GCS_BUCKET", raising=False)
+    monkeypatch.delenv("MASTR_RAW_DIR", raising=False)
+    monkeypatch.delenv("BQ_DATASET", raising=False)
+    monkeypatch.delenv("BQ_LOCATION", raising=False)
     from mastr_data_pipeline.config import get_settings
 
     with pytest.raises(ValueError, match="Missing required environment variable"):
         get_settings()
 
 
-def test_get_settings_bq_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path):
+def test_get_settings_reads_required_env(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
     monkeypatch.setenv("GCP_PROJECT_ID", "proj")
     monkeypatch.setenv("GCS_BUCKET", "bucket")
-    monkeypatch.delenv("BQ_DATASET", raising=False)
-    monkeypatch.delenv("BQ_TABLE", raising=False)
-    monkeypatch.delenv("BQ_LOCATION", raising=False)
+    monkeypatch.setenv("MASTR_RAW_DIR", str(tmp_path))
+    monkeypatch.setenv("BQ_DATASET", "mastr_raw")
+    monkeypatch.setenv("BQ_LOCATION", "europe-west3")
     from mastr_data_pipeline.config import get_settings
 
     settings = get_settings()
+    assert settings.project_id == "proj"
+    assert settings.bucket == "bucket"
+    assert settings.raw_dir == tmp_path
     assert settings.bq_dataset == "mastr_raw"
-    assert settings.bq_table == "raw_mastr_units"
     assert settings.bq_location == "europe-west3"
+
+
+def test_get_settings_requires_bq_and_raw_dir(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("GCP_PROJECT_ID", "proj")
+    monkeypatch.setenv("GCS_BUCKET", "bucket")
+    monkeypatch.delenv("MASTR_RAW_DIR", raising=False)
+    monkeypatch.delenv("BQ_DATASET", raising=False)
+    monkeypatch.delenv("BQ_LOCATION", raising=False)
+    from mastr_data_pipeline.config import get_settings
+
+    with pytest.raises(ValueError, match="MASTR_RAW_DIR"):
+        get_settings()
 
 
 def test_cli_main_invokes_ingest(monkeypatch: pytest.MonkeyPatch):
@@ -149,10 +170,19 @@ def test_cli_load_raw(monkeypatch: pytest.MonkeyPatch):
         return RawLoadResult(
             snapshot_date=snapshot_date,
             staging_table="stg",
-            destination_table="proj.mastr_raw.raw_mastr_units",
+            destination_table=(
+                "proj.mastr_raw.{raw_mastr_wind,raw_mastr_solar,"
+                "raw_mastr_biomass,raw_mastr_storage}"
+            ),
             row_counts={"wind.csv": 278},
             ingested_at="2026-11-15T00:00:00+00:00",
             status="replaced",
+            destination_tables=(
+                "proj.mastr_raw.raw_mastr_wind",
+                "proj.mastr_raw.raw_mastr_solar",
+                "proj.mastr_raw.raw_mastr_biomass",
+                "proj.mastr_raw.raw_mastr_storage",
+            ),
         )
 
     monkeypatch.setattr(

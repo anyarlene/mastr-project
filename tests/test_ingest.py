@@ -94,6 +94,20 @@ def test_get_settings_requires_env(monkeypatch: pytest.MonkeyPatch):
         get_settings()
 
 
+def test_get_settings_bq_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    monkeypatch.setenv("GCP_PROJECT_ID", "proj")
+    monkeypatch.setenv("GCS_BUCKET", "bucket")
+    monkeypatch.delenv("BQ_DATASET", raising=False)
+    monkeypatch.delenv("BQ_TABLE", raising=False)
+    monkeypatch.delenv("BQ_LOCATION", raising=False)
+    from mastr_data_pipeline.config import get_settings
+
+    settings = get_settings()
+    assert settings.bq_dataset == "mastr_raw"
+    assert settings.bq_table == "raw_mastr_units"
+    assert settings.bq_location == "europe-west3"
+
+
 def test_cli_main_invokes_ingest(monkeypatch: pytest.MonkeyPatch):
     from mastr_data_pipeline.__main__ import main
 
@@ -112,6 +126,37 @@ def test_cli_main_invokes_ingest(monkeypatch: pytest.MonkeyPatch):
             )
         ]
 
-    monkeypatch.setattr("mastr_data_pipeline.__main__.ingest_snapshot", fake_ingest)
+    monkeypatch.setattr(
+        "mastr_data_pipeline.ingest.ingest_snapshot", fake_ingest
+    )
+    assert main(["ingest-bronze", "--snapshot-date", "2026-11-09"]) == 0
+    assert called["snapshot_date"] == "2026-11-09"
+    # Legacy flag-only form still maps to ingest-bronze.
+    called.clear()
     assert main(["--snapshot-date", "2026-11-09"]) == 0
     assert called["snapshot_date"] == "2026-11-09"
+
+
+def test_cli_load_raw(monkeypatch: pytest.MonkeyPatch):
+    from mastr_data_pipeline.__main__ import main
+    from mastr_data_pipeline.bq_raw import RawLoadResult
+
+    called = {}
+
+    def fake_load(snapshot_date: str, keep_staging: bool = False, **kwargs):
+        called["snapshot_date"] = snapshot_date
+        called["keep_staging"] = keep_staging
+        return RawLoadResult(
+            snapshot_date=snapshot_date,
+            staging_table="stg",
+            destination_table="proj.mastr_raw.raw_mastr_units",
+            row_counts={"wind.csv": 278},
+            ingested_at="2026-11-15T00:00:00+00:00",
+            status="replaced",
+        )
+
+    monkeypatch.setattr(
+        "mastr_data_pipeline.load_raw.load_raw_snapshot", fake_load
+    )
+    assert main(["load-raw", "--snapshot-date", "2026-11-09"]) == 0
+    assert called == {"snapshot_date": "2026-11-09", "keep_staging": False}

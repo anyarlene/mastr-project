@@ -5,31 +5,24 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+from mastr_data_pipeline.config_loader import SOURCE_FILES, load_snapshots
+
+# Re-export for callers that import SOURCE_FILES from checksums.
+__all__ = [
+    "EXPECTED_SHA256",
+    "SOURCE_FILES",
+    "expected_checksums",
+    "md5_file_b64",
+    "sha256_file",
+    "verify_local_checksum",
+]
+
 # snapshot_date is the dated folder label under data/raw/, not necessarily
 # the official MaStR export timestamp.
 EXPECTED_SHA256: dict[str, dict[str, str]] = {
-    "2026-11-09": {
-        "wind.csv": (
-            "a1987b4647c6227138a4062f1c123c05d367a803ff634fb6ca69357d3bc0a192"
-        ),
-        "solar.csv": (
-            "3b26e599bfa7f464c046b010ae51c99937eca58c96b3ed9593c0e6dc0b769a96"
-        ),
-        "biomass.csv": (
-            "2c52fcc0c9b1e317f2047f86627f7a8859bc5fc56df152da30a99d8238fcbb70"
-        ),
-        "battery.csv": (
-            "fa1fdf099c05c4fee23a49d14054975225dfe1303660fb339756f5f9ff9803c2"
-        ),
-    }
+    snapshot_date: dict(entry["sha256"])
+    for snapshot_date, entry in load_snapshots().items()
 }
-
-SOURCE_FILES: tuple[str, ...] = (
-    "wind.csv",
-    "solar.csv",
-    "biomass.csv",
-    "battery.csv",
-)
 
 
 def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
@@ -61,7 +54,7 @@ def md5_file_b64(path: Path, chunk_size: int = 1024 * 1024) -> str:
 def expected_checksums(snapshot_date: str) -> dict[str, str]:
     """Return expected SHA-256 map for a snapshot_date folder label."""
     try:
-        return EXPECTED_SHA256[snapshot_date]
+        return dict(EXPECTED_SHA256[snapshot_date])
     except KeyError as exc:
         known = ", ".join(sorted(EXPECTED_SHA256)) or "(none)"
         raise ValueError(

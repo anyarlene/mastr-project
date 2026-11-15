@@ -1,0 +1,16 @@
+[project]
+name = "mastr-data-pipeline"
+version = "0.1.0"
+description = "MaStR extract, transform, and load package"
+authors = [
+    {name = "Any-Arlene Niyubahwe",email = "61238244+anyarlene@users.noreply.github.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12.8,<3.13"
+dependencies = [
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

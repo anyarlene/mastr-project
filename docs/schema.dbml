@@ -1,0 +1,111 @@
+//// MaStR star schema (final v1 design)
+////
+//// Raw German CSVs remain immutable in GCS.
+//// Lineage columns (source_file, snapshot_date, ingested_at) are set at
+//// BigQuery raw load and preserved through dbt.
+//// English names and categorical codes are applied in dbt staging → marts.
+//// SCD Type 2 is designed for later (dbt snapshots); not implemented in v1.
+////
+//// Le Wagon layering:
+////   raw (GCS/BigQuery) → staging → dimensions + fact (marts)
+
+Table dim_municipality {
+  municipality_id varchar [pk, note: 'AGS / Gemeindeschlüssel (8-digit natural key)']
+  municipality_name varchar [note: 'Gemeinde']
+  district varchar [note: 'Landkreis']
+  federal_state varchar [note: 'Bundesland']
+
+  Note: 'Grain: one row per municipality. Current attributes only in v1.'
+}
+
+Table dim_energy_source {
+  energy_source_id int [pk, note: 'Surrogate key']
+  energy_source_code varchar [unique, note: 'English: wind | solar | biomass | battery | hydrogen_storage | other_storage']
+  energy_source_label varchar [note: 'English display label']
+  energy_source_group varchar [note: 'generation | storage — drives which measure is valid']
+  source_energy_carrier_de varchar [note: 'Original Energieträger']
+  source_storage_technology_de varchar [note: 'Original Speichertechnologie; null for generation']
+
+  Note: '''
+  Do NOT map every Energieträger=Speicher to battery.
+  Classify storage using Speichertechnologie:
+    Batterie → battery
+    Wasserstoffspeicher → hydrogen_storage
+    other/unknown → other_storage
+  Generation codes come from Energieträger only (Wind / Solare Strahlungsenergie / Biomasse).
+  '''
+}
+
+Table dim_status {
+  status_id int [pk, note: 'Surrogate key']
+  status_code varchar [unique, note: 'English: operational | planned | decommissioned']
+  status_label varchar
+  is_operational boolean [note: 'True only for operational (In Betrieb)']
+  source_value_de varchar [note: 'Original Betriebs-Status']
+
+  Note: 'Maps German Betriebs-Status → English code + is_operational.'
+}
+
+Table fct_mastr_units {
+  snapshot_date date [note: 'Snapshot folder / BigQuery load partition date']
+  unit_id varchar [note: 'MaStR-Nr. der Einheit (SEE…)']
+
+  municipality_id varchar [ref: > dim_municipality.municipality_id]
+  energy_source_id int [ref: > dim_energy_source.energy_source_id]
+  status_id int [ref: > dim_status.status_id]
+
+  unit_name varchar [note: 'Anzeige-Name der Einheit']
+  storage_id varchar [note: 'MaStR-Nr. der Speichereinheit (SSE…); storage units when present']
+  is_operational boolean [note: 'Denormalized from dim_status for simple filters']
+
+  // Lineage — set at BigQuery raw load; preserved through dbt
+  source_file varchar [note: 'wind.csv | solar.csv | biomass.csv | battery.csv']
+  ingested_at timestamp [note: 'UTC timestamp of BigQuery raw load']
+
+  // Measures — keep separate; municipality headlines use net power only
+  generation_power_kw decimal [note: 'Nettonennleistung; generation units only']
+  storage_power_kw decimal [note: 'Nettonennleistung; storage units only (battery/hydrogen/other)']
+  storage_capacity_kwh decimal [note: 'Nutzbare Speicherkapazität; storage only']
+  gross_power_kw decimal [note: 'Bruttoleistung; audit only — do not sum for municipality MW']
+
+  commissioning_date date
+  planned_commissioning_date date
+  decommissioned_date date
+  last_updated_at timestamp
+
+  indexes {
+    (snapshot_date, unit_id) [pk]
+  }
+
+  Note: '''
+  Grain: one installation unit per snapshot_date.
+  PK: (snapshot_date, unit_id).
+
+  Municipality reporting must use only the latest COMPLETE snapshot_date:
+    - all four expected CSV files successfully loaded
+    - actual row counts match expected source-file counts for that snapshot
+    - no failed or incomplete loads
+  so the same unit is not double-counted across historical extracts.
+  '''
+}
+
+//// ---------------------------------------------------------------------------
+//// Future SCD Type 2 (NOT implemented in v1)
+//// Preferred: dbt snapshots on a unit-attribute model, producing
+////   valid_from / valid_to / is_current (dbt_valid_from, dbt_valid_to, …).
+//// Equivalent target shape if modeled as a dimension later:
+////
+//// Table dim_unit_history {
+////   unit_sk int [pk]
+////   unit_id varchar
+////   municipality_id varchar
+////   energy_source_id int
+////   status_id int
+////   generation_power_kw decimal
+////   storage_power_kw decimal
+////   storage_capacity_kwh decimal
+////   valid_from timestamp
+////   valid_to timestamp
+////   is_current boolean
+//// }
+//// ---------------------------------------------------------------------------

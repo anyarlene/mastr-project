@@ -1,0 +1,29 @@
+version: 2
+
+sources:
+  - name: mastr_raw
+    description: BigQuery Raw landing for immutable MaStR CSV payloads (German STRING columns + lineage).
+    database: "{{ target.project }}"
+    schema: mastr_raw
+    tables:
+      - name: raw_mastr_units
+        description: >
+          One row per installation unit per snapshot_date.
+          Payload columns keep sanitized German names; all payload fields are STRING.
+        columns:
+          - name: mastr_nr_der_einheit
+            description: MaStR installation unit ID (SEE…).
+            tests:
+              - not_null
+          - name: snapshot_date
+            description: Snapshot partition date from the raw folder / GCS path.
+            tests:
+              - not_null
+          - name: source_file
+            description: Destination CSV filename (wind.csv, solar.csv, biomass.csv, battery.csv).
+            tests:
+              - not_null
+          - name: ingested_at
+            description: UTC timestamp of the BigQuery Raw load.
+            tests:
+              - not_null

@@ -1,0 +1,77 @@
+version: 2
+
+models:
+  - name: stg_mastr_units
+    description: >
+      Cleaned MaStR installation units: English column names, typed numerics/dates,
+      and standardized status / energy-carrier codes. Grain matches Raw
+      (snapshot_date, unit_id). Business classification and measures live in Intermediate.
+    columns:
+      - name: unit_id
+        description: Installation unit natural key (SEE…).
+        tests:
+          - not_null
+      - name: storage_id
+        description: Storage registry ID (SSE…) when present; null for generation units.
+      - name: unit_name
+        description: Display name of the installation unit.
+      - name: status_de
+        description: Original German Betriebs-Status (audit).
+      - name: status_code
+        description: English status code (operational | planned | decommissioned | unknown).
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['operational', 'planned', 'decommissioned', 'unknown']
+      - name: energy_carrier_de
+        description: Original German Energieträger (audit).
+      - name: energy_carrier_code
+        description: English energy-carrier code (wind | solar | biomass | storage | unknown).
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['wind', 'solar', 'biomass', 'storage', 'unknown']
+      - name: storage_technology_de
+        description: Original German Speichertechnologie; used later for storage classification.
+      - name: gross_power_kw
+        description: Gross / nameplate power in kW (audit).
+        tests:
+          - not_null
+      - name: net_power_kw
+        description: Net rated power in kW (municipality comparisons use this downstream).
+        tests:
+          - not_null
+      - name: storage_capacity_kwh
+        description: Usable storage capacity in kWh; null for generation units.
+      - name: commissioning_date
+        description: Unit commissioning date.
+      - name: planned_commissioning_date
+        description: Planned commissioning date when not yet operational.
+      - name: decommissioned_date
+        description: Final decommissioning date when applicable.
+      - name: last_updated_at
+        description: Source last-updated calendar date (DATE; source is date-only).
+      - name: municipality_id
+        description: 8-digit AGS / Gemeindeschlüssel.
+        tests:
+          - not_null
+      - name: municipality_name
+        description: Municipality name.
+      - name: district
+        description: District (Landkreis).
+      - name: federal_state
+        description: Federal state (Bundesland).
+      - name: source_file
+        description: Origin CSV within the snapshot (wind.csv | solar.csv | biomass.csv | battery.csv).
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['wind.csv', 'solar.csv', 'biomass.csv', 'battery.csv']
+      - name: snapshot_date
+        description: Snapshot partition date.
+        tests:
+          - not_null
+      - name: ingested_at
+        description: UTC timestamp of the Raw load.
+        tests:
+          - not_null

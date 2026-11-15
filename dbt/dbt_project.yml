@@ -1,0 +1,27 @@
+# MaStR dbt project — Staging → Intermediate → Marts
+name: mastr
+version: 1.0.0
+config-version: 2
+profile: mastr
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+analysis-paths: ["analyses"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+models:
+  mastr:
+    staging:
+      +materialized: view
+      # Uses target.schema from profiles (mastr_staging). Do not set +schema here
+      # or BigQuery would get a concatenated suffix with the default macro.
+    intermediate:
+      +materialized: view
+      +schema: mastr_intermediate
+    marts:
+      +materialized: table
+      +schema: mastr_marts

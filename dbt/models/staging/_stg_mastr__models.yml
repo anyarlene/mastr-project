@@ -1,13 +1,11 @@
 version: 2
 
 models:
-  - name: stg_mastr_units
+  - name: stg_mastr_wind
     description: >
-      Cleaned MaStR installation units: English column names, typed numerics/dates,
-      and standardized status / energy-carrier / storage-technology codes.
-      Grain matches Raw (snapshot_date, unit_id).
-      Business classification and measures live in Intermediate.
-    columns:
+      Staging view for raw_mastr_wind. Shared DE→EN macro.
+      Grain: (snapshot_date, unit_id).
+    columns: &stg_columns
       - name: unit_id
         description: Installation unit natural key (SEE…).
         tests:
@@ -86,3 +84,21 @@ models:
         description: UTC timestamp of the Raw load.
         tests:
           - not_null
+
+  - name: stg_mastr_solar
+    description: >
+      Staging view for raw_mastr_solar. Shared DE→EN macro.
+      Grain: (snapshot_date, unit_id).
+    columns: *stg_columns
+
+  - name: stg_mastr_biomass
+    description: >
+      Staging view for raw_mastr_biomass. Shared DE→EN macro.
+      Grain: (snapshot_date, unit_id).
+    columns: *stg_columns
+
+  - name: stg_mastr_storage
+    description: >
+      Staging view for raw_mastr_storage / battery.csv. Shared DE→EN macro.
+      Grain: (snapshot_date, unit_id).
+    columns: *stg_columns

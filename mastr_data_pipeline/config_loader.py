@@ -13,6 +13,16 @@ SOURCE_FILES: tuple[str, ...] = (
     "battery.csv",
 )
 
+# BigQuery Raw table per Bronze CSV (split Raw architecture).
+RAW_TABLE_BY_SOURCE: dict[str, str] = {
+    "wind.csv": "raw_mastr_wind",
+    "solar.csv": "raw_mastr_solar",
+    "biomass.csv": "raw_mastr_biomass",
+    "battery.csv": "raw_mastr_storage",
+}
+
+RAW_TABLES: tuple[str, ...] = tuple(RAW_TABLE_BY_SOURCE[f] for f in SOURCE_FILES)
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = _REPO_ROOT / "config"
 

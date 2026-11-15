@@ -7,8 +7,8 @@
     1) all four expected source files are present
     2) Intermediate row counts match seed_snapshot_expectations
        (generated from config/snapshots.json)
-    3) Raw, Staging, and Intermediate counts agree per source_file
-       (layer consistency — not row counts against expectations alone)
+    3) Raw (split tables), Staging (four views), and Intermediate counts
+       agree per source_file
 */
 
 with expected as (
@@ -27,7 +27,19 @@ raw_counts as (
         snapshot_date,
         source_file,
         count(*) as row_count
-    from {{ source('mastr_raw', 'raw_mastr_units') }}
+    from (
+        select snapshot_date, source_file
+        from {{ source('mastr_raw', 'raw_mastr_wind') }}
+        union all
+        select snapshot_date, source_file
+        from {{ source('mastr_raw', 'raw_mastr_solar') }}
+        union all
+        select snapshot_date, source_file
+        from {{ source('mastr_raw', 'raw_mastr_biomass') }}
+        union all
+        select snapshot_date, source_file
+        from {{ source('mastr_raw', 'raw_mastr_storage') }}
+    ) as raw_all
     group by snapshot_date, source_file
 
 ),
@@ -38,7 +50,15 @@ staging_counts as (
         snapshot_date,
         source_file,
         count(*) as row_count
-    from {{ ref('stg_mastr_units') }}
+    from (
+        select snapshot_date, source_file from {{ ref('stg_mastr_wind') }}
+        union all
+        select snapshot_date, source_file from {{ ref('stg_mastr_solar') }}
+        union all
+        select snapshot_date, source_file from {{ ref('stg_mastr_biomass') }}
+        union all
+        select snapshot_date, source_file from {{ ref('stg_mastr_storage') }}
+    ) as staging_all
     group by snapshot_date, source_file
 
 ),

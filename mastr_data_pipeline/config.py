@@ -9,6 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 DEFAULT_BQ_DATASET = "mastr_raw"
+# Legacy unified Raw table name (archive during migration; loader writes split tables).
 DEFAULT_BQ_TABLE = "raw_mastr_units"
 DEFAULT_BQ_LOCATION = "europe-west3"
 
@@ -34,7 +35,7 @@ def get_settings() -> Settings:
     Optional:
       - MASTR_RAW_DIR (default: <repo>/data/raw)
       - BQ_DATASET (default: mastr_raw)
-      - BQ_TABLE (default: raw_mastr_units)
+      - BQ_TABLE (legacy unified name; loader uses split Raw tables)
       - BQ_LOCATION (default: europe-west3)
       - GOOGLE_APPLICATION_CREDENTIALS (ADC / service-account key path)
     """

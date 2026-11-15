@@ -3,6 +3,7 @@
 /*
   Intermediate (Silver): English-only business classification and measures.
 
+  Combines the four Staging views (wind / solar / biomass / storage).
   Inputs from Staging already use English codes. No German→English mapping here.
   Unknown energy carriers are preserved as energy_source_code/group = unknown
   and excluded from generation/storage capacity measures.
@@ -10,7 +11,13 @@
 
 with staging as (
 
-    select * from {{ ref('stg_mastr_units') }}
+    select * from {{ ref('stg_mastr_wind') }}
+    union all
+    select * from {{ ref('stg_mastr_solar') }}
+    union all
+    select * from {{ ref('stg_mastr_biomass') }}
+    union all
+    select * from {{ ref('stg_mastr_storage') }}
 
 ),
 

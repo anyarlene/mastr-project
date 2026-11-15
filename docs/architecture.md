@@ -13,6 +13,7 @@ Related docs:
 
 - `docs/data_validation.md` — source validation and modeling decisions
 - `docs/schema.dbml` — star schema ERD
+- `docs/migration_four_raw_tables.md` — unified Raw → four Raw tables cutover
 
 ---
 
@@ -38,11 +39,11 @@ flowchart TB
   PY["Python ingestion<br/>mastr_data_pipeline/<br/>Done"]
   GCS["GCS Bronze<br/>your-bronze-bucket-name<br/>Done"]
 
-  BQRaw["BigQuery Raw table<br/>mastr_raw.raw_mastr_units<br/>Planned"]
+  BQRaw["BigQuery Raw (4 tables)<br/>raw_mastr_wind/solar/biomass/storage<br/>Phase 1 backfill Done"]
 
-  STG["dbt Staging views<br/>clean / rename / cast<br/>Planned"]
-  INT["dbt Intermediate views<br/>business logic / classification / measures<br/>Planned"]
-  MART["dbt Marts<br/>dims + fct_mastr_units + mart_municipality_capacity<br/>Planned"]
+  STG["dbt Staging (4 views)<br/>stg_mastr_wind/solar/biomass/storage<br/>Code ready; live cutover pending"]
+  INT["dbt Intermediate<br/>int_mastr_units (UNION ALL Staging)<br/>Code ready; live cutover pending"]
+  MART["dbt Marts<br/>dims + fct + mart_municipality_capacity<br/>Done (live rebuild pending)"]
 
   DL -.->|"manual until automated"| CSV
   AF -->|"1. trigger Python ingestion"| PY
@@ -78,10 +79,10 @@ Airflow does **not** own transformation SQL. dbt does **not** schedule itself.
 | Layer | Purpose | Materialization | Status |
 |---|---|---|---|
 | **GCS Bronze** | Immutable original MaStR CSV bytes, path-labeled by `snapshot_date` | GCS objects | **Done** (snapshot `2026-11-09` uploaded) |
-| **BigQuery Raw** (`mastr_raw.raw_mastr_units`) | Physical landing table: German payload as STRING + lineage (`source_file`, `snapshot_date`, `ingested_at`) | **Table** (partition by `snapshot_date`) | **Planned** |
-| **dbt Staging** | Cleaning, English renaming, type conversion (incl. decimal commas); 1:1 with Raw grain | **Views** | **Planned** |
-| **dbt Intermediate** | Reusable business logic: energy-source classification (`Speichertechnologie`), `is_operational`, separate capacity measures | **Views** | **Planned** |
-| **dbt Marts** | Star schema + municipality reporting for BI | **Tables** (typical) | **Planned** |
+| **BigQuery Raw** (4 tables) | One table per CSV: `raw_mastr_wind` / `_solar` / `_biomass` / `_storage`; German STRING + lineage; legacy `raw_mastr_units` kept during migration | **Tables** (partition by `snapshot_date`) | **Done** (Phase 1 backfill; 32 611 rows) |
+| **dbt Staging** | Four source views (`stg_mastr_wind` / `_solar` / `_biomass` / `_storage`); shared DE→EN macro; no unified Staging model | **Views** | **Code ready** (live cutover pending) |
+| **dbt Intermediate** | `UNION ALL` of the four Staging views, then energy-source classification, `is_operational`, separate capacity measures | **Views** | **Code ready** (live cutover pending) |
+| **dbt Marts** | Star schema + municipality reporting for BI | **Tables** | **Done** (live rebuild pending after Staging cutover) |
 
 Le Wagon practice: keep staging and intermediate as views; materialize marts for stable reporting.
 
@@ -100,59 +101,46 @@ Le Wagon practice: keep staging and intermediate as views; materialize marts for
 
 GCS Bronze objects stay immutable. No cleaning in place on the objects.
 
-### 2. GCS Bronze → BigQuery Raw (`mastr_raw.raw_mastr_units`)
+### 2. GCS Bronze → BigQuery Raw (four tables)
 
 | Item | Status | Notes |
 |---|---|---|
-| Dataset `mastr_raw` in `europe-west3` | **Planned** | Physical Raw layer |
-| Table `raw_mastr_units` | **Planned** | One table for all four source files |
-| Lineage at load | **Planned** | `source_file`, `snapshot_date`, `ingested_at` |
-| Idempotent reload | **Planned** | Delete then load for that `snapshot_date` only |
+| Dataset `mastr_raw` in `europe-west3` | **Done** | Physical Raw layer |
+| Legacy `raw_mastr_units` | **Done (archive)** | Unified table; retained until Staging/Gold cutover is validated |
+| Split tables | **Done** (Phase 1) | `raw_mastr_wind` / `_solar` / `_biomass` / `_storage` (32 611 rows) |
+| Lineage at load | **Done** | `source_file`, `snapshot_date`, `ingested_at` |
+| Idempotent reload | **Code ready** | Per-table delete-then-insert for that `snapshot_date` |
 
-BigQuery loading is **not implemented yet**.
+See `docs/migration_four_raw_tables.md` for the live cutover plan.
 
 ### 3. dbt Staging → Intermediate → Marts
 
-#### Staging (views) — Planned
+#### Staging (views) — Code ready (live cutover pending)
 
-- Model focus: `stg_mastr_units` (and thin helpers if needed)
-- Rename German headers to English field names
-- Cast types (parse German decimal commas to NUMERIC)
-- Pass through lineage columns unchanged in meaning
+- `stg_mastr_wind` / `_solar` / `_biomass` / `_storage` from the four Raw tables
+- Shared macro `select_stg_mastr_units` for DE→EN mapping and casts
+- No unified Staging model; Intermediate combines the four views
 
-#### Intermediate (views) — Planned
+#### Intermediate (views) — Code ready (live cutover pending)
 
-Reusable business logic **before** the star schema:
+Reusable business logic **before** the star schema (`int_mastr_units`):
 
-- Classify energy source: generation vs storage; battery vs hydrogen vs other via `Speichertechnologie` (never assume every `Speicher` is a battery)
+- `UNION ALL` of the four Staging views
+- Classify energy source: generation vs storage; battery vs hydrogen vs other via storage technology codes
 - Derive `is_operational` from status
-- Build separate measures: `generation_power_kw`, `storage_power_kw`, `storage_capacity_kwh` (net power for municipality comparisons; gross audit-only)
+- Build separate measures: `generation_power_kw`, `storage_power_kw`, `storage_capacity_kwh`
 
-#### Marts (tables) — Planned
-
-Approved star schema and reporting mart:
+#### Marts (tables) — Done
 
 | Model | Role |
 |---|---|
-| `dim_municipality` | One row per `Gemeindeschlüssel` |
+| `dim_municipality` | One row per municipality |
 | `dim_energy_source` | English codes + `energy_source_group` |
 | `dim_status` | English status + `is_operational` |
 | `fct_mastr_units` | Grain `(snapshot_date, unit_id)`; FKs to the three dims |
 | `mart_municipality_capacity` | Municipality-level analytical reporting |
 
-**Measure policy:**
-
-- Municipality headlines use **net** power (`Nettonennleistung`).
-- Keep generation kW, storage kW, and storage kWh separate.
-- `gross_power_kw` is audit-only.
-
-**Avoiding duplicate municipality counts:**
-
-1. Fact grain is one unit per `(snapshot_date, unit_id)` — no fan-out joins that multiply rows.
-2. Aggregate generation and storage measures separately by `energy_source_group` / `energy_source_code`.
-3. `mart_municipality_capacity` uses **only the latest complete snapshot** (definition below).
-
-dbt transformations are **not implemented yet** (folder placeholders exist).
+**Measure policy:** municipality headlines use **net** power; keep generation kW, storage kW, and storage kWh separate; `gross_power_kw` is audit-only. Mart uses only the latest complete snapshot.
 
 ### 4. Airflow orchestration (`mastr-airflow`)
 

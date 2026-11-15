@@ -2,28 +2,55 @@ version: 2
 
 sources:
   - name: mastr_raw
-    description: BigQuery Raw landing for immutable MaStR CSV payloads (German STRING columns + lineage).
+    description: >
+      BigQuery Raw landing for immutable MaStR CSV payloads
+      (German STRING columns + lineage), one table per source file.
+      Legacy raw_mastr_units is retained as an archive during migration and is
+      not declared here as an active source.
     database: "{{ target.project }}"
     schema: mastr_raw
     tables:
-      - name: raw_mastr_units
-        description: >
-          One row per installation unit per snapshot_date.
-          Payload columns keep sanitized German names; all payload fields are STRING.
+      - name: raw_mastr_wind
+        description: Wind units from wind.csv (SEE…); lineage includes source_file=wind.csv.
         columns:
           - name: mastr_nr_der_einheit
-            description: MaStR installation unit ID (SEE…).
-            tests:
-              - not_null
+            tests: [not_null]
           - name: snapshot_date
-            description: Snapshot partition date from the raw folder / GCS path.
-            tests:
-              - not_null
+            tests: [not_null]
           - name: source_file
-            description: Destination CSV filename (wind.csv, solar.csv, biomass.csv, battery.csv).
-            tests:
-              - not_null
+            tests: [not_null]
           - name: ingested_at
-            description: UTC timestamp of the BigQuery Raw load.
-            tests:
-              - not_null
+            tests: [not_null]
+      - name: raw_mastr_solar
+        description: Solar units from solar.csv.
+        columns:
+          - name: mastr_nr_der_einheit
+            tests: [not_null]
+          - name: snapshot_date
+            tests: [not_null]
+          - name: source_file
+            tests: [not_null]
+          - name: ingested_at
+            tests: [not_null]
+      - name: raw_mastr_biomass
+        description: Biomass units from biomass.csv.
+        columns:
+          - name: mastr_nr_der_einheit
+            tests: [not_null]
+          - name: snapshot_date
+            tests: [not_null]
+          - name: source_file
+            tests: [not_null]
+          - name: ingested_at
+            tests: [not_null]
+      - name: raw_mastr_storage
+        description: Storage units from battery.csv (Batterie / Wasserstoffspeicher / other).
+        columns:
+          - name: mastr_nr_der_einheit
+            tests: [not_null]
+          - name: snapshot_date
+            tests: [not_null]
+          - name: source_file
+            tests: [not_null]
+          - name: ingested_at
+            tests: [not_null]

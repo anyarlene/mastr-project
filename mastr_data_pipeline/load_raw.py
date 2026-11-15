@@ -18,7 +18,10 @@ def load_raw_snapshot(
     keep_staging: bool = False,
 ) -> RawLoadResult:
     """
-    Load one MaStR snapshot from GCS Bronze into mastr_raw.raw_mastr_units.
+    Load one MaStR snapshot from GCS Bronze into the four split Raw tables.
+
+    Writes: raw_mastr_wind / raw_mastr_solar / raw_mastr_biomass / raw_mastr_storage.
+    Does not modify legacy mastr_raw.raw_mastr_units.
 
     Callable from CLI and Airflow. Idempotent via validate-then-atomic-replace.
     """

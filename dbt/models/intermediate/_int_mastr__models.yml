@@ -3,8 +3,10 @@ version: 2
 models:
   - name: int_mastr_units
     description: >
-      Intermediate MaStR units with English energy-source classification,
-      is_operational, and separated generation/storage measures.
+      Intermediate MaStR units: UNION ALL of the four Staging views
+      (stg_mastr_wind / _solar / _biomass / _storage), then English
+      energy-source classification, is_operational, and separated
+      generation/storage measures.
       Grain: one row per (snapshot_date, unit_id).
       Unknown classifications are preserved for investigation and excluded
       from generation/storage capacity measures.

@@ -8,7 +8,7 @@
 
   Deferred to Intermediate:
     - is_operational
-    - energy_source_code / energy_source_group (via storage technology)
+    - energy_source_code / energy_source_group
     - generation_power_kw / storage_power_kw measure split
 */
 
@@ -45,6 +45,14 @@ renamed as (
             else 'unknown'
         end as energy_carrier_code,
         nullif(trim(speichertechnologie), '') as storage_technology_de,
+        case
+            when nullif(trim(speichertechnologie), '') = 'Batterie' then 'battery'
+            when nullif(trim(speichertechnologie), '') = 'Wasserstoffspeicher'
+                then 'hydrogen_storage'
+            when nullif(trim(speichertechnologie), '') is not null then 'other_storage'
+            when trim(energietraeger) = 'Speicher' then 'other_storage'
+            else null
+        end as storage_technology_code,
 
         -- power and capacity (German decimal comma → NUMERIC)
         {{ parse_decimal_comma('bruttoleistung_der_einheit') }} as gross_power_kw,

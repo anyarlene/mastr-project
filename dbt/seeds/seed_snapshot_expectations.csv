@@ -1,0 +1,5 @@
+snapshot_date,source_file,expected_row_count
+2026-11-09,wind.csv,278
+2026-11-09,solar.csv,20861
+2026-11-09,biomass.csv,56
+2026-11-09,battery.csv,11416

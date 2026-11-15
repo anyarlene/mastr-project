@@ -1,0 +1,8 @@
+energy_source_id,energy_source_code,energy_source_label,energy_source_group
+1,wind,Wind,generation
+2,solar,Solar,generation
+3,biomass,Biomass,generation
+4,battery,Battery storage,storage
+5,hydrogen_storage,Hydrogen storage,storage
+6,other_storage,Other storage,storage
+7,unknown,Unknown,unknown

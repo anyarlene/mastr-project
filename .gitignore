@@ -10,6 +10,7 @@
 
 # Airflow local runtime
 logs/
+database/
 airflow.cfg
 airflow.db
 webserver_config.py

@@ -43,3 +43,26 @@ seeds:
         description: wind.csv | solar.csv | biomass.csv | battery.csv.
       - name: expected_row_count
         description: Expected number of rows after Raw load.
+
+  - name: seed_snapshot_metadata
+    description: >
+      Declared snapshot export_scope and cdc_baseline flags from
+      config/snapshots.json (not CSV columns). Used to select
+      all_statuses snapshots for CDC eligibility.
+    columns:
+      - name: snapshot_date
+        description: Snapshot partition date.
+        tests:
+          - unique
+          - not_null
+      - name: export_scope
+        description: all_statuses | legacy_mixed_filters.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['all_statuses', 'legacy_mixed_filters']
+      - name: cdc_baseline
+        description: True for CDC-eligible all_statuses baselines.
+        tests:
+          - not_null
+

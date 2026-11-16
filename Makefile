@@ -13,8 +13,9 @@ format:
 test:
 	PYTHONDONTWRITEBYTECODE=1 poetry run pytest tests -m "not optional" -v --disable-warnings --color=yes
 
-# Regenerate dbt/seeds/seed_snapshot_expectations.csv from config/snapshots.json
-# (single source of truth). Run before `make dbt-seed` when snapshot expectations change.
+# Regenerate snapshot seeds from config/snapshots.json (single source of truth):
+#   seed_snapshot_expectations.csv + seed_snapshot_metadata.csv
+# Run before `make dbt-seed` when snapshot registration changes.
 generate-snapshot-seed:
 	poetry run python scripts/generate_snapshot_expectations_seed.py
 

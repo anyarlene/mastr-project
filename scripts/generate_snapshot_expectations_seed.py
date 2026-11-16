@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Regenerate dbt/seeds/seed_snapshot_expectations.csv from config/snapshots.json.
+"""Regenerate snapshot-related dbt seeds from config/snapshots.json.
 
-config/snapshots.json is the single source of truth for expected row counts
-and SHA-256 checksums. Run this script whenever that file changes, before
-`dbt seed`:
+Writes:
+  - dbt/seeds/seed_snapshot_expectations.csv
+  - dbt/seeds/seed_snapshot_metadata.csv
+
+config/snapshots.json is the single source of truth. Run before `dbt seed`:
 
     poetry run python scripts/generate_snapshot_expectations_seed.py
 
@@ -18,16 +20,17 @@ import argparse
 from pathlib import Path
 
 from mastr_data_pipeline.snapshot_expectations_seed import (
+    DEFAULT_METADATA_SEED_PATH,
     DEFAULT_SEED_PATH,
     DEFAULT_SNAPSHOTS_PATH,
-    write_snapshot_expectations_seed,
+    write_all_snapshot_seeds,
 )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate seed_snapshot_expectations.csv from config/snapshots.json"
+            "Generate snapshot expectation and metadata seeds from config/snapshots.json"
         )
     )
     parser.add_argument(
@@ -40,14 +43,22 @@ def main(argv: list[str] | None = None) -> int:
         "--output",
         type=Path,
         default=DEFAULT_SEED_PATH,
-        help=f"Output CSV path (default: {DEFAULT_SEED_PATH})",
+        help=f"Expectations CSV path (default: {DEFAULT_SEED_PATH})",
+    )
+    parser.add_argument(
+        "--metadata-output",
+        type=Path,
+        default=DEFAULT_METADATA_SEED_PATH,
+        help=f"Metadata CSV path (default: {DEFAULT_METADATA_SEED_PATH})",
     )
     args = parser.parse_args(argv)
-    dest = write_snapshot_expectations_seed(
+    expectations, metadata = write_all_snapshot_seeds(
         snapshots_path=args.snapshots,
-        seed_path=args.output,
+        expectations_seed_path=args.output,
+        metadata_seed_path=args.metadata_output,
     )
-    print(f"Wrote {dest}")
+    print(f"Wrote {expectations}")
+    print(f"Wrote {metadata}")
     return 0
 
 

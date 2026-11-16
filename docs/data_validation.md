@@ -201,7 +201,10 @@ Le Wagon-style star schema — see `docs/schema.dbml`:
 
 - **Primary key (fact):** `(snapshot_date, unit_id)`
 - **Foreign keys:** `municipality_id`, `energy_source_id`, `status_id`
-- **Future SCD Type 2:** dbt snapshots with `valid_from` / `valid_to` / `is_current` — designed, not implemented in v1
+- **Snapshot CDC:** `int_mastr_unit_cdc` / `fct_mastr_unit_changes` compare consecutive
+  complete `all_statuses` snapshots (starts at `2026-11-16`; Nov 9 excluded).
+  DELETE_CANDIDATE is not a confirmed deletion. SCD Type 2 remains deferred.
+
 
 ### dbt tests (implemented)
 

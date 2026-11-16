@@ -157,3 +157,34 @@ models:
         description: Sum of operational usable storage energy (kWh).
         tests:
           - not_null
+
+  - name: fct_mastr_unit_changes
+    description: >
+      Materialized CDC change events (INSERT, UPDATE, DELETE_CANDIDATE) between
+      consecutive complete all_statuses snapshots. Excludes UNCHANGED.
+      DELETE_CANDIDATE is not a confirmed deletion.
+    columns:
+      - name: from_snapshot_date
+        description: Earlier eligible snapshot observation date.
+        tests:
+          - not_null
+      - name: to_snapshot_date
+        description: Later eligible snapshot observation date.
+        tests:
+          - not_null
+      - name: unit_id
+        description: Installation unit natural key.
+        tests:
+          - not_null
+      - name: source_file
+        description: Origin CSV filename.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['wind.csv', 'solar.csv', 'biomass.csv', 'battery.csv']
+      - name: change_type
+        description: INSERT | UPDATE | DELETE_CANDIDATE.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['INSERT', 'UPDATE', 'DELETE_CANDIDATE']

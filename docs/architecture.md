@@ -163,7 +163,8 @@ Seeds (land in `mastr_staging`): `seed_energy_sources`, `seed_statuses`, `seed_s
 | Documented source QA | **Done** | Checksums, ID uniqueness, join readiness |
 | Raw load validation | **Done** | Expected counts from `config/snapshots.json` |
 | dbt tests | **Done** | Unique keys, not-null, relationships, capacity rules, completeness |
-| SCD Type 2 / CDC via dbt snapshots | **Planned (design only)** | Hooks in `schema.dbml`; not built yet |
+| Snapshot CDC (`int_mastr_unit_cdc`, `fct_mastr_unit_changes`) | **Done (models)** | all_statuses complete pairs only; Nov 9 excluded; live dbt run pending approval |
+| SCD Type 2 | **Deferred** | Not required while multi-snapshot fact exists |
 
 #### Latest complete snapshot
 

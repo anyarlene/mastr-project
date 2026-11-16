@@ -22,7 +22,7 @@ Orchestration lives in the sister repository `mastr-airflow` (not this repo).
 | Raw | `mastr_raw` | `raw_mastr_wind`, `raw_mastr_solar`, `raw_mastr_biomass`, `raw_mastr_storage` |
 | Staging | `mastr_staging` | `stg_mastr_wind`, `stg_mastr_solar`, `stg_mastr_biomass`, `stg_mastr_storage` (+ seeds) |
 | Intermediate | `mastr_intermediate` | `int_mastr_units` |
-| Gold | `mastr_marts` | `dim_*`, `fct_mastr_units`, `mart_municipality_capacity` |
+| Gold | `mastr_marts` | `dim_*`, `fct_mastr_units`, `mart_municipality_capacity`, `fct_mastr_unit_changes` (CDC) |
 
 Location: `europe-west3`. Shared Staging transform: dbt macro `select_stg_mastr_units`.
 

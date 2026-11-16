@@ -143,13 +143,39 @@ completeness checks. Path: **4 Raw tables → 4 Staging views → Intermediate �
 | In Betrieb | `operational` | `true` |
 | In Planung | `planned` | `false` |
 | Endgültig stillgelegt | `decommissioned` | `false` |
+| Vorübergehend stillgelegt | `temporarily_decommissioned` | `false` |
+
+## Data Contract (local, before Bronze)
+
+Implemented in `mastr_data_pipeline.data_contract` and enforced by
+`validate-snapshot` / `ingest-bronze`.
+
+Checks: exactly four required CSVs; UTF-8 (BOM optional); semicolon delimiter;
+64 German headers; source-specific `Energieträger`; unique `MaStR-Nr. der Einheit`
+within and across files; Landkreis/Bundesland = Potsdam-Mittelmark / Brandenburg;
+European decimals and `DD/MM/YYYY` dates where populated; row counts + SHA-256
+vs `config/snapshots.json`.
+
+### `export_scope` metadata
+
+Declared in `config/snapshots.json` — **not** a MaStR CSV column. The file contents
+cannot prove whether an export included all operational statuses; the teammate who
+registers the snapshot must set:
+
+- `all_statuses` — required for new CDC-eligible snapshots (`cdc_baseline: true`)
+- `legacy_mixed_filters` — only for historical `2026-11-09`
+
+| Snapshot | Scope | Notes |
+|---|---|---|
+| `2026-11-09` | `legacy_mixed_filters` | Wind all statuses; solar/biomass/battery operational-only |
+| `2026-11-16` | `all_statuses` | First CDC baseline (33 643 rows) |
 
 ## Latest complete snapshot
 
 A `snapshot_date` is **complete** only when all of the following hold:
 
 1. All four expected CSV files were successfully loaded into the four Raw tables (`wind.csv`, `solar.csv`, `biomass.csv`, `battery.csv`).
-2. Actual loaded row counts match `config/snapshots.json` / `seed_snapshot_expectations` (for `2026-11-09`: 278 / 20 861 / 56 / 11 416).
+2. Actual loaded row counts match `config/snapshots.json` / `seed_snapshot_expectations`.
 3. Raw, Staging, and Intermediate counts agree per `source_file` (see ephemeral model `complete_snapshots`).
 4. There are no failed or incomplete loads for that snapshot.
 

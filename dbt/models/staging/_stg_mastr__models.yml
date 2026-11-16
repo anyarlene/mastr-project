@@ -17,11 +17,18 @@ models:
       - name: status_de
         description: Original German Betriebs-Status (audit).
       - name: status_code
-        description: English status code (operational | planned | decommissioned | unknown).
+        description: >
+          English status code (operational | planned | decommissioned |
+          temporarily_decommissioned | unknown).
         tests:
           - not_null
           - accepted_values:
-              values: ['operational', 'planned', 'decommissioned', 'unknown']
+              values:
+                - operational
+                - planned
+                - decommissioned
+                - temporarily_decommissioned
+                - unknown
       - name: energy_carrier_de
         description: Original German Energieträger (audit).
       - name: energy_carrier_code

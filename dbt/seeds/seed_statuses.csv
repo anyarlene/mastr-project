@@ -3,3 +3,4 @@ status_id,status_code,status_label,is_operational
 2,planned,Planned,false
 3,decommissioned,Decommissioned,false
 4,unknown,Unknown,false
+5,temporarily_decommissioned,Temporarily decommissioned,false

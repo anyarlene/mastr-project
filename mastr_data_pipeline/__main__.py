@@ -15,12 +15,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     bronze = subparsers.add_parser(
         "ingest-bronze",
-        help="Upload original CSVs to GCS Bronze (create-only, SHA-256 verified).",
+        help=(
+            "Validate Data Contract then upload original CSVs to GCS Bronze "
+            "(create-only, SHA-256 verified)."
+        ),
     )
     bronze.add_argument(
         "--snapshot-date",
         required=True,
         help="Dated snapshot folder label (e.g. 2026-11-09).",
+    )
+
+    validate = subparsers.add_parser(
+        "validate-snapshot",
+        help="Run MaStR Data Contract checks on local CSVs (no upload).",
+    )
+    validate.add_argument(
+        "--snapshot-date",
+        required=True,
+        help="Dated snapshot folder label (e.g. 2026-11-16).",
     )
 
     raw = subparsers.add_parser(
@@ -48,7 +61,7 @@ def _normalize_argv(argv: list[str]) -> list[str]:
     """Allow legacy ` --snapshot-date DATE` as ingest-bronze."""
     if not argv:
         return argv
-    if argv[0] in {"ingest-bronze", "load-raw", "-h", "--help"}:
+    if argv[0] in {"ingest-bronze", "load-raw", "validate-snapshot", "-h", "--help"}:
         return argv
     if argv[0].startswith("-"):
         return ["ingest-bronze", *argv]
@@ -60,7 +73,23 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(_normalize_argv(raw_argv))
 
     if args.command is None:
-        build_parser().error("command required: ingest-bronze | load-raw")
+        build_parser().error(
+            "command required: ingest-bronze | validate-snapshot | load-raw"
+        )
+
+    if args.command == "validate-snapshot":
+        from mastr_data_pipeline.config import get_settings
+        from mastr_data_pipeline.data_contract import validate_snapshot_contract
+
+        cfg = get_settings()
+        result = validate_snapshot_contract(args.snapshot_date, cfg.raw_dir)
+        print(
+            f"{result.status}\t{result.snapshot_date}\t"
+            f"export_scope={result.export_scope}\t"
+            f"cdc_baseline={result.cdc_baseline}\t"
+            f"row_counts={result.row_counts}"
+        )
+        return 0
 
     if args.command == "ingest-bronze":
         from mastr_data_pipeline.ingest import ingest_snapshot

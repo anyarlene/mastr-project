@@ -45,11 +45,47 @@ poetry install --with dbt
 | Source | Role |
 |---|---|
 | `.env` | Required: `GCP_PROJECT_ID`, `GCS_BUCKET`, `GOOGLE_APPLICATION_CREDENTIALS`, `MASTR_RAW_DIR`, `BQ_DATASET`, `BQ_LOCATION` |
-| `config/snapshots.json` | Snapshot SHA-256 digests and expected row counts (single source of truth) |
-| `config/mastr_headers.json` | Expected German CSV headers |
+| `config/snapshots.json` | Snapshot SHA-256, row counts, and `export_scope` (single source of truth) |
+| `config/mastr_headers.json` | Expected German CSV headers (64 columns) |
 | `dbt/seeds/` | Reference dims + `seed_snapshot_expectations` (regenerate via Makefile) |
 
 Place local CSVs under `data/raw/<snapshot_date>/` (`wind.csv`, `solar.csv`, `biomass.csv`, `battery.csv`). That folder is gitignored.
+
+### Data Contract (required before Bronze)
+
+Local snapshots must pass `validate-snapshot` before upload. `ingest-bronze` runs the same checks automatically.
+
+**Required files (exactly these four CSVs):** `wind.csv`, `solar.csv`, `biomass.csv`, `battery.csv`  
+Non-CSV sidecars are ignored; extra `.csv` files fail validation.
+
+**Agreed export filters:**
+- Geography: Landkreis **Potsdam-Mittelmark**, Bundesland **Brandenburg**
+- Energy carriers: Wind / Solare Strahlungsenergie / Biomasse / Speicher (one carrier per file)
+- Operational statuses: prefer **all statuses** in each export (`In Betrieb`, `In Planung`, `Endgültig stillgelegt`, `Vorübergehend stillgelegt` when present)
+
+**`export_scope` (declared metadata — not a CSV column):**
+| Value | Meaning |
+|---|---|
+| `all_statuses` | CDC-eligible; required for new snapshots |
+| `legacy_mixed_filters` | Historical exception for `2026-11-09` only |
+
+The CSV alone cannot prove whether all statuses were included; teammates must declare `export_scope` when registering a snapshot.
+
+**Known snapshots:**
+| Date | Scope | Rows | Role |
+|---|---|---:|---|
+| `2026-11-09` | `legacy_mixed_filters` | 32 611 | Preserved historical load (solar/biomass/battery were operational-only) |
+| `2026-11-16` | `all_statuses` | 33 643 | **First CDC baseline** |
+
+### Register a new snapshot
+
+1. Export four MaStR CSVs (all statuses, Potsdam-Mittelmark) into `data/raw/YYYY-MM-DD/`.
+2. Compute SHA-256 and row counts; add an `all_statuses` entry to `config/snapshots.json`.
+3. Run `make generate-snapshot-seed`.
+4. Run `poetry run python -m mastr_data_pipeline validate-snapshot --snapshot-date YYYY-MM-DD`.
+5. Only then run Bronze / Raw / dbt (or the Airflow DAG).
+
+Failures include missing/extra CSVs, wrong schema/carrier/geography, missing/duplicate IDs, bad decimals/dates, row-count or checksum mismatch, or invalid `export_scope`.
 
 ## Common commands
 
@@ -61,7 +97,10 @@ make test
 # Regenerate seed_snapshot_expectations.csv from config/snapshots.json
 make generate-snapshot-seed
 
-# Bronze upload (create-only)
+# Data Contract only (no upload)
+poetry run python -m mastr_data_pipeline validate-snapshot --snapshot-date 2026-11-16
+
+# Bronze upload (Data Contract then create-only upload)
 poetry run python -m mastr_data_pipeline ingest-bronze --snapshot-date 2026-11-09
 
 # BigQuery Raw load (validate-then-replace into the four Raw tables)
@@ -80,8 +119,6 @@ A `snapshot_date` is complete when all four source files are present in Raw with
 row counts matching `config/snapshots.json` / `seed_snapshot_expectations`, and
 Staging + Intermediate counts align. Gold municipality reporting uses only the
 latest complete snapshot.
-
-Known snapshot `2026-11-09`: 278 + 20 861 + 56 + 11 416 = **32 611** units.
 
 ## Documentation
 

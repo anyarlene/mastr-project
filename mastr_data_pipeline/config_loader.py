@@ -13,6 +13,26 @@ SOURCE_FILES: tuple[str, ...] = (
     "battery.csv",
 )
 
+# Declared snapshot export scope (metadata — not a CSV column).
+EXPORT_SCOPE_ALL_STATUSES = "all_statuses"
+EXPORT_SCOPE_LEGACY_MIXED = "legacy_mixed_filters"
+ALLOWED_EXPORT_SCOPES: frozenset[str] = frozenset(
+    {
+        EXPORT_SCOPE_ALL_STATUSES,
+        EXPORT_SCOPE_LEGACY_MIXED,
+    }
+)
+# Only this historical snapshot may use legacy_mixed_filters.
+LEGACY_MIXED_FILTERS_SNAPSHOT = "2026-11-09"
+
+# Expected Energieträger value per required source file.
+EXPECTED_ENERGY_CARRIER_BY_SOURCE: dict[str, str] = {
+    "wind.csv": "Wind",
+    "solar.csv": "Solare Strahlungsenergie",
+    "biomass.csv": "Biomasse",
+    "battery.csv": "Speicher",
+}
+
 # BigQuery Raw table per Bronze CSV (split Raw architecture).
 RAW_TABLE_BY_SOURCE: dict[str, str] = {
     "wind.csv": "raw_mastr_wind",
@@ -58,7 +78,11 @@ def load_snapshots(path: Path | None = None) -> dict[str, dict[str, Any]]:
     """
     Load snapshot metadata from snapshots.json.
 
-    Returns a mapping of snapshot_date -> {row_counts, sha256}.
+    Returns a mapping of snapshot_date -> {
+      export_scope, cdc_baseline, notes?, row_counts, sha256
+    }.
+
+    ``export_scope`` is user-declared metadata (not present in MaStR CSVs).
     """
     snapshots_path = path or (config_dir() / "snapshots.json")
     payload = load_json(snapshots_path)
@@ -74,6 +98,42 @@ def load_snapshots(path: Path | None = None) -> dict[str, dict[str, Any]]:
             raise ValueError(f"{snapshots_path}: snapshot dates must be non-empty strings")
         if not isinstance(entry, dict):
             raise ValueError(f"{snapshots_path}: snapshot '{snapshot_date}' must be an object")
+
+        export_scope = entry.get("export_scope")
+        if not isinstance(export_scope, str) or export_scope not in ALLOWED_EXPORT_SCOPES:
+            raise ValueError(
+                f"{snapshots_path}: snapshot '{snapshot_date}' export_scope must be one of "
+                f"{sorted(ALLOWED_EXPORT_SCOPES)}"
+            )
+        if (
+            export_scope == EXPORT_SCOPE_LEGACY_MIXED
+            and snapshot_date != LEGACY_MIXED_FILTERS_SNAPSHOT
+        ):
+            raise ValueError(
+                f"{snapshots_path}: export_scope '{EXPORT_SCOPE_LEGACY_MIXED}' is only "
+                f"allowed for snapshot '{LEGACY_MIXED_FILTERS_SNAPSHOT}' "
+                f"(got '{snapshot_date}')"
+            )
+        if (
+            snapshot_date != LEGACY_MIXED_FILTERS_SNAPSHOT
+            and export_scope != EXPORT_SCOPE_ALL_STATUSES
+        ):
+            raise ValueError(
+                f"{snapshots_path}: new snapshots must use export_scope "
+                f"'{EXPORT_SCOPE_ALL_STATUSES}' (CDC-eligible). "
+                f"Got '{export_scope}' for '{snapshot_date}'."
+            )
+
+        cdc_baseline = entry.get("cdc_baseline", export_scope == EXPORT_SCOPE_ALL_STATUSES)
+        if not isinstance(cdc_baseline, bool):
+            raise ValueError(
+                f"{snapshots_path}: snapshot '{snapshot_date}' cdc_baseline must be a boolean"
+            )
+        if cdc_baseline and export_scope != EXPORT_SCOPE_ALL_STATUSES:
+            raise ValueError(
+                f"{snapshots_path}: snapshot '{snapshot_date}' cannot be cdc_baseline "
+                f"unless export_scope is '{EXPORT_SCOPE_ALL_STATUSES}'"
+            )
 
         row_counts = entry.get("row_counts")
         sha256 = entry.get("sha256")
@@ -121,9 +181,19 @@ def load_snapshots(path: Path | None = None) -> dict[str, dict[str, Any]]:
                 ) from exc
             normalized_sha[filename] = digest.lower()
 
+        notes = entry.get("notes")
+        if notes is not None and not isinstance(notes, str):
+            raise ValueError(
+                f"{snapshots_path}: snapshot '{snapshot_date}' notes must be a string"
+            )
+
         validated[snapshot_date] = {
+            "export_scope": export_scope,
+            "cdc_baseline": cdc_baseline,
             "row_counts": normalized_counts,
             "sha256": normalized_sha,
         }
+        if isinstance(notes, str):
+            validated[snapshot_date]["notes"] = notes
 
     return validated

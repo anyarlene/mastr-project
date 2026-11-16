@@ -12,6 +12,7 @@
             when 'In Betrieb' then 'operational'
             when 'In Planung' then 'planned'
             when 'Endgültig stillgelegt' then 'decommissioned'
+            when 'Vorübergehend stillgelegt' then 'temporarily_decommissioned'
             else 'unknown'
         end as status_code,
 

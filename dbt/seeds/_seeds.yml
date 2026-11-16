@@ -19,7 +19,7 @@ seeds:
   - name: seed_statuses
     description: >
       Reference dimension for English status_code values
-      (operational, planned, decommissioned, unknown).
+      (operational, planned, decommissioned, temporarily_decommissioned, unknown).
       Loaded into mastr_staging; consumed by dim_status.
     columns:
       - name: status_id

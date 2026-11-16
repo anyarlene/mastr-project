@@ -47,9 +47,13 @@ def ingest_snapshot(
     """
     Upload all MaStR CSVs for a snapshot_date folder to GCS Bronze.
 
-    Preserves original file bytes. Callable from CLI and Airflow.
+    Runs the Data Contract validation first, then uploads. Preserves original
+    file bytes. Callable from CLI and Airflow.
     """
     cfg = settings or get_settings()
+    from mastr_data_pipeline.data_contract import validate_snapshot_contract
+
+    validate_snapshot_contract(snapshot_date, cfg.raw_dir)
     checksums = expected_checksums(snapshot_date)
     files = list_snapshot_files(cfg.raw_dir, snapshot_date)
 

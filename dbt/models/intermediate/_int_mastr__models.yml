@@ -24,7 +24,12 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['operational', 'planned', 'decommissioned', 'unknown']
+              values:
+                - operational
+                - planned
+                - decommissioned
+                - temporarily_decommissioned
+                - unknown
       - name: is_operational
         description: True only when status_code is operational.
         tests:

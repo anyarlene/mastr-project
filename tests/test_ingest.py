@@ -70,6 +70,9 @@ def test_ingest_snapshot_calls_upload_for_each_file(tmp_path: Path):
         return result
 
     with patch(
+        "mastr_data_pipeline.data_contract.validate_snapshot_contract",
+        return_value=None,
+    ), patch(
         "mastr_data_pipeline.ingest.expected_checksums",
         return_value={name: sha256_file(path) for name, path in paths.items()},
     ), patch(

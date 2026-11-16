@@ -96,7 +96,9 @@ Datasets (all `europe-west3`): `mastr_raw`, `mastr_staging`, `mastr_intermediate
 
 | Item | Status | Notes |
 |---|---|---|
-| Local snapshot `data/raw/2026-11-09/` | **Done** | Four CSVs validated (see `docs/data_validation.md`) |
+| Local snapshot `data/raw/2026-11-09/` | **Done** | Legacy mixed filters; preserved in Raw/Gold |
+| Local snapshot `data/raw/2026-11-16/` | **Done (local)** | All-statuses CDC baseline; Data Contract registered; not ingested yet |
+| Data Contract (`validate-snapshot`) | **Done** | Enforced before Bronze; see `docs/data_validation.md` |
 | Python Bronze ingestion package + tests | **Done** | CLI: `poetry run python -m mastr_data_pipeline ingest-bronze --snapshot-date …` |
 | GCS bucket `your-bronze-bucket-name` | **Done** | `europe-west3`; objects under `bronze/mastr/snapshot_date=…/` |
 | Automated MaStR export download | **Unresolved** | Separate from upload |
@@ -171,7 +173,7 @@ A `snapshot_date` is complete only when:
 2. Actual loaded row counts match the **expected counts for that snapshot** (`config/snapshots.json` / `seed_snapshot_expectations`).
 3. Raw, Staging, and Intermediate counts agree per `source_file`.
 
-For snapshot `2026-11-09` the expected counts are 278 / 20 861 / 56 / 11 416. Future snapshots will have their own expected counts.
+Known expected counts: `2026-11-09` → 278 / 20 861 / 56 / 11 416; `2026-11-16` → 278 / 21 631 / 58 / 11 676. New snapshots must declare `export_scope: all_statuses` in `config/snapshots.json`.
 
 ```text
 latest_complete_snapshot_date =

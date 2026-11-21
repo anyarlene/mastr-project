@@ -22,8 +22,8 @@ from mastr_data_pipeline.config_loader import RAW_TABLE_BY_SOURCE, RAW_TABLES
 
 def test_gcs_uri_and_staging_table_id():
     assert (
-        gcs_uri("your-bronze-bucket-name", "2026-11-09", "wind.csv")
-        == "gs://your-bronze-bucket-name/bronze/mastr/snapshot_date=2026-11-09/wind.csv"
+        gcs_uri("test-mastr-bronze", "2026-11-09", "wind.csv")
+        == "gs://test-mastr-bronze/bronze/mastr/snapshot_date=2026-11-09/wind.csv"
     )
     assert (
         staging_table_id("2026-11-09", table="raw_mastr_wind")

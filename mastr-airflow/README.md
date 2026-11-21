@@ -1,7 +1,7 @@
 # MaStR Airflow
 
-Orchestration-only repository for the MaStR data product.
-Business logic stays in the sibling repo `mastr-data-pipeline`.
+Orchestration-only component for the MaStR data product.
+Business logic stays in the sibling directory `mastr-data-pipeline`.
 
 ## Architecture
 
@@ -35,7 +35,7 @@ check_local_csvs
 
 ## Prerequisites
 
-1. Sibling checkout: `../mastr-data-pipeline` next to this repo.
+1. Monorepo layout: `../mastr-data-pipeline` next to this directory (Compose bind mount).
 2. Local snapshot CSVs already present for the date you will run.
 3. GCP service-account key under `~/.gcp_keys/` (read-only mount).
 4. dbt profile `mastr` in `~/.dbt/profiles.yml` with `keyfile` pointing at that key path.
@@ -67,7 +67,7 @@ Inside containers:
 
 | Path | Role |
 |---|---|
-| `/opt/mastr-data-pipeline` | Mounted sibling repo (code, `data/raw`, seed write-back) |
+| `/opt/mastr-data-pipeline` | Mounted pipeline directory (code, `data/raw`, seed write-back) |
 | `/opt/venvs/mastr-pipeline` | Image-built dependency venv (GCS, BigQuery, dbt) |
 | `/opt/airflow-project/.venv` | Airflow-only Poetry env |
 | `/home/YOUR_USER/.gcp_keys` | Credentials (read-only; same path as host profiles) |
@@ -80,7 +80,7 @@ Pipeline dependency pins live in `container/pipeline-requirements.txt`
 ## Start / stop
 
 ```bash
-cd ~/code/anyarlene/mastr-airflow
+cd /path/to/mastr-project/mastr-airflow
 docker compose build
 docker compose up -d
 docker compose ps
@@ -128,7 +128,7 @@ ls logs/dag_id=mastr_snapshot_pipeline/
 
 ## Teammate setup
 
-1. Clone both repos as siblings under the same parent directory.
+1. Work from the monorepo; Compose mounts `../mastr-data-pipeline` next to this directory.
 2. Copy `.env.sample` → `.env` and set your user paths for keys/profiles.
 3. Ensure `~/.dbt/profiles.yml` contains the `mastr` profile (see pipeline `dbt/profiles.yml.example`).
 4. Do **not** mount or reuse a host Poetry `.venv`.

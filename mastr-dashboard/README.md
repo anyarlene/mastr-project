@@ -30,7 +30,7 @@ Default credentials path:
 ## Install
 
 ```bash
-cd ~/code/anyarlene/mastr-dashboard
+cd /path/to/mastr-project/mastr-dashboard
 cp .env.example .env   # optional
 poetry install
 ```
@@ -38,7 +38,7 @@ poetry install
 ## Launch
 
 ```bash
-cd ~/code/anyarlene/mastr-dashboard
+cd /path/to/mastr-project/mastr-dashboard
 poetry run streamlit run app.py
 ```
 
@@ -47,7 +47,7 @@ Open the URL shown in the terminal (usually `http://localhost:8501`).
 ## Tests
 
 ```bash
-cd ~/code/anyarlene/mastr-dashboard
+cd /path/to/mastr-project/mastr-dashboard
 poetry run pytest -v
 ```
 

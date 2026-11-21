@@ -3,7 +3,7 @@
 Data product for Marktstammdatenregister (MaStR) extracts covering
 Potsdam-Mittelmark (Brandenburg): wind, solar, biomass, and storage.
 
-Orchestration lives in the sister repository `mastr-airflow` (not this repo).
+Orchestration lives in the sibling directory `mastr-airflow` (same monorepo).
 
 ## Architecture
 

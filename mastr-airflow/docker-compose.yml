@@ -1,5 +1,5 @@
 # Le Wagon–style LocalExecutor stack.
-# Pipeline source is mounted from the sibling repo; dependencies come from the
+# Pipeline source is mounted from ../mastr-data-pipeline; dependencies come from the
 # image's isolated /opt/venvs/mastr-pipeline (not the host Poetry .venv).
 services:
   postgres:

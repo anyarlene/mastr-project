@@ -1,6 +1,7 @@
 # Airflow runtime + isolated MaStR pipeline dependency venv.
 # Build context: this repository (mastr-airflow). Pipeline *source* is mounted
 # at runtime; only dependency pins are baked in (container/pipeline-requirements.txt).
+# Do not COPY ADC, JSON keys, or .env into the image.
 FROM python:3.12.8-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -10,7 +11,7 @@ ENV PYTHONUNBUFFERED=1 \
     AIRFLOW_PROJECT=/opt/airflow-project \
     MASTR_PIPELINE_DIR=/opt/mastr-data-pipeline \
     PIPELINE_VENV=/opt/venvs/mastr-pipeline \
-    DBT_PROFILES_DIR=/home/YOUR_USER/.dbt \
+    DBT_PROFILES_DIR=/opt/dbt \
     MASTR_RAW_DIR=/opt/mastr-data-pipeline/data/raw \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
     POETRY_NO_INTERACTION=1
@@ -27,9 +28,9 @@ RUN pip install --no-cache-dir --upgrade pip poetry \
         /opt/airflow/dags \
         /opt/airflow/logs \
         /opt/venvs \
-        /home/YOUR_USER \
+        /opt/dbt \
         /opt/mastr-data-pipeline \
-    && chmod 755 /home/YOUR_USER
+        /root/.config/gcloud
 
 # --- Airflow Poetry environment (scheduler / webserver only) ---
 WORKDIR ${AIRFLOW_PROJECT}

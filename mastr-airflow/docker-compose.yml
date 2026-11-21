@@ -1,6 +1,9 @@
-# Le Wagon–style LocalExecutor stack.
+# LocalExecutor stack for MaStR orchestration.
 # Pipeline source is mounted from ../mastr-data-pipeline; dependencies come from the
 # image's isolated /opt/venvs/mastr-pipeline (not the host Poetry .venv).
+#
+# Auth: keyless Application Default Credentials (ADC). Mount the host ADC file
+# read-only; do not set GOOGLE_APPLICATION_CREDENTIALS to a service-account key.
 services:
   postgres:
     image: postgres:14
@@ -41,8 +44,7 @@ services:
       MASTR_PIPELINE_DIR: /opt/mastr-data-pipeline
       PIPELINE_VENV: /opt/venvs/mastr-pipeline
       MASTR_RAW_DIR: /opt/mastr-data-pipeline/data/raw
-      DBT_PROFILES_DIR: /home/YOUR_USER/.dbt
-      GOOGLE_APPLICATION_CREDENTIALS: /home/YOUR_USER/.gcp_keys/dbt-service-account.json
+      DBT_PROFILES_DIR: /opt/dbt
       # Pipeline get_settings() required vars (values from env_file / host .env)
       GCP_PROJECT_ID: ${GCP_PROJECT_ID}
       GCS_BUCKET: ${GCS_BUCKET}
@@ -53,9 +55,10 @@ services:
       - ./logs:/opt/airflow/logs
       # Sibling pipeline (code + data/raw + seed write-back). Do NOT mount host .venv.
       - ../mastr-data-pipeline:/opt/mastr-data-pipeline
-      # Preserve absolute credential / profile paths used by existing dbt profiles.yml
-      - ${GCP_KEYS_HOST_PATH}:/home/YOUR_USER/.gcp_keys:ro
-      - ${DBT_PROFILES_HOST_PATH}:/home/YOUR_USER/.dbt:ro
+      # Host already-impersonated ADC (well-known path for container root user).
+      - ${GCP_ADC_HOST_PATH}:/root/.config/gcloud/application_default_credentials.json:ro
+      # Host dbt profiles (method: oauth; no keyfile; no profile-level impersonation).
+      - ${DBT_PROFILES_HOST_PATH}:/opt/dbt:ro
     healthcheck:
       test:
         [

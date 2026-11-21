@@ -73,3 +73,36 @@ def test_compose_mentions_isolated_pipeline_venv_and_no_host_venv_mount():
     assert "/.venv:" not in compose
     assert ".venv:" not in compose
     assert "docker.sock" not in compose
+
+
+def test_compose_uses_keyless_adc_and_portable_paths():
+    compose = (REPO / "docker-compose.yml").read_text(encoding="utf-8")
+    dockerfile = (REPO / "Dockerfile").read_text(encoding="utf-8")
+    env_sample = (REPO / ".env.sample").read_text(encoding="utf-8")
+
+    # ADC file mount at the container well-known path for root.
+    assert (
+        "${GCP_ADC_HOST_PATH}:/root/.config/gcloud/"
+        "application_default_credentials.json:ro" in compose
+    )
+    assert "DBT_PROFILES_DIR: /opt/dbt" in compose
+    assert "${DBT_PROFILES_HOST_PATH}:/opt/dbt:ro" in compose
+
+    # No forced JSON key auth or personal home paths.
+    assert "GOOGLE_APPLICATION_CREDENTIALS:" not in compose
+    assert "GOOGLE_APPLICATION_CREDENTIALS=" not in compose
+    assert "gcp_keys" not in compose
+    assert "GCP_KEYS_HOST_PATH" not in compose
+    assert "/home/YOUR_USER" not in compose
+    assert "dbt-service-account.json" not in compose
+
+    assert "DBT_PROFILES_DIR=/opt/dbt" in dockerfile
+    assert "/home/YOUR_USER" not in dockerfile
+    assert "dbt-service-account.json" not in dockerfile
+
+    assert "GCP_ADC_HOST_PATH=" in env_sample
+    assert "GCP_KEYS_HOST_PATH" not in env_sample
+    assert "GOOGLE_APPLICATION_CREDENTIALS=" not in env_sample
+    assert "your-gcp-project-id" in env_sample
+    assert "mastr-project-1126" not in env_sample
+    assert "dbt-service-account.json" not in env_sample

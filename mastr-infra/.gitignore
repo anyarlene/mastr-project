@@ -1,0 +1,38 @@
+# Terraform local state and plugins (never commit)
+.terraform/
+# Commit .terraform.lock.hcl once providers are installed (after approved init).
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Variable files may contain environment-specific values
+*.tfvars
+!terraform.tfvars.example
+!*.tfvars.example
+
+# Credentials and keys
+.env
+.env.*
+!.env.sample
+!.env.example
+*.pem
+*.key
+**/credentials*.json
+**/*service*account*.json
+**/dbt-service-account.json
+
+# Editor / OS
+.DS_Store
+*.swp
+*~
+
+# Agent-specific (do not commit)
+.cursor/
+.claude/
+.agent/

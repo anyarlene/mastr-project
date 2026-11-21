@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import utils.bigquery as bq
 
 # Placeholder usernames allowed in samples; reject any other /home/<name> path.
@@ -34,26 +36,44 @@ def _assert_no_hardcoded_personal_homes(text: str, *, label: str) -> None:
         )
 
 
-def test_default_project_id_constant() -> None:
-    assert bq.DEFAULT_PROJECT_ID == "mastr-project-1126"
-    assert bq.DATASET == "mastr_marts"
-    assert bq.LOCATION == "europe-west3"
+def test_product_marts_dataset_default() -> None:
+    assert bq.DEFAULT_MARTS_DATASET == "mastr_marts"
 
 
-def test_get_project_id_uses_default_when_env_unset(monkeypatch) -> None:
+def test_get_project_id_requires_env(monkeypatch) -> None:
     monkeypatch.delenv("GCP_PROJECT_ID", raising=False)
     with patch.object(bq, "_load_env"):
-        assert bq.get_project_id() == "mastr-project-1126"
+        with pytest.raises(ValueError, match="GCP_PROJECT_ID"):
+            bq.get_project_id()
 
 
-def test_get_project_id_respects_env_override(monkeypatch) -> None:
+def test_get_location_requires_env(monkeypatch) -> None:
+    monkeypatch.delenv("BQ_LOCATION", raising=False)
+    with patch.object(bq, "_load_env"):
+        with pytest.raises(ValueError, match="BQ_LOCATION"):
+            bq.get_location()
+
+
+def test_get_project_id_and_location_respect_env(monkeypatch) -> None:
     monkeypatch.setenv("GCP_PROJECT_ID", "my-team-gcp-project")
+    monkeypatch.setenv("BQ_LOCATION", "europe-west3")
     with patch.object(bq, "_load_env"):
         assert bq.get_project_id() == "my-team-gcp-project"
+        assert bq.get_location() == "europe-west3"
+
+
+def test_get_marts_dataset_default_and_override(monkeypatch) -> None:
+    monkeypatch.delenv("BQ_MARTS_DATASET", raising=False)
+    with patch.object(bq, "_load_env"):
+        assert bq.get_marts_dataset() == "mastr_marts"
+    monkeypatch.setenv("BQ_MARTS_DATASET", "custom_marts")
+    with patch.object(bq, "_load_env"):
+        assert bq.get_marts_dataset() == "custom_marts"
 
 
 def test_get_client_uses_adc_not_service_account_json(monkeypatch) -> None:
     monkeypatch.setenv("GCP_PROJECT_ID", "override-project")
+    monkeypatch.setenv("BQ_LOCATION", "europe-west3")
     fake_client = MagicMock(name="BigQueryClient")
 
     with (
@@ -72,8 +92,10 @@ def test_get_client_uses_adc_not_service_account_json(monkeypatch) -> None:
     from_sa.assert_not_called()
 
 
-def test_sql_builders_use_configured_project(monkeypatch) -> None:
+def test_sql_builders_use_configured_project_and_dataset(monkeypatch) -> None:
     monkeypatch.setenv("GCP_PROJECT_ID", "sql-project-xyz")
+    monkeypatch.setenv("BQ_LOCATION", "europe-west3")
+    monkeypatch.setenv("BQ_MARTS_DATASET", "mastr_marts")
     captured: list[str] = []
 
     def fake_run_query(sql: str):
@@ -102,13 +124,14 @@ def test_dashboard_files_have_no_legacy_auth_or_personal_paths() -> None:
     root = bq.Path(__file__).resolve().parents[1]
     targets = [
         root / "utils" / "bigquery.py",
-        root / ".env.example",
+        root / ".env.sample",
         root / "README.md",
     ]
     forbidden_literals = (
         "from_service_account_json",
         "dbt-service-account.json",
         "~/.gcp_keys/",
+        "mastr-project-1126",
     )
     for path in targets:
         text = path.read_text(encoding="utf-8")

@@ -201,6 +201,8 @@ def test_load_snapshot_to_raw_validate_then_replace_order():
             project_id="proj",
             bucket="bucket",
             snapshot_date="2026-11-09",
+            dataset="mastr_raw",
+            location="europe-west3",
             client=client,
             ingested_at=datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc),
             keep_staging=True,
@@ -238,6 +240,8 @@ def test_load_snapshot_to_raw_skips_replace_when_validation_fails():
                 project_id="proj",
                 bucket="bucket",
                 snapshot_date="2026-11-09",
+                dataset="mastr_raw",
+                location="europe-west3",
                 client=client,
             )
         replace.assert_not_called()

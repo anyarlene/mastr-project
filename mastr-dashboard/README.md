@@ -2,7 +2,7 @@
 
 Proof-of-concept Streamlit dashboard for operational renewable generation and storage capacity across **38 municipalities in Potsdam-Mittelmark** (Brandenburg).
 
-Data is read **read-only** from BigQuery Gold tables in dataset `mastr_marts` (`europe-west3`). The default project is `mastr-project-1126`; override with `GCP_PROJECT_ID` if needed.
+Data is read **read-only** from BigQuery Gold tables (dataset `mastr_marts` by default). Set `GCP_PROJECT_ID` and `BQ_LOCATION` in `.env` (see `.env.sample`). Optional: `BQ_MARTS_DATASET` to override the Gold dataset name.
 
 ## Features
 
@@ -29,11 +29,13 @@ Prefer the MaStR-specific ADC file:
 ~/.config/gcloud/mastr/application_default_credentials.json
 ```
 
-In `.env` (see `.env.example`), set:
+In `.env` (see `.env.sample`), set:
 
 ```bash
 GOOGLE_APPLICATION_CREDENTIALS=/home/YOUR_USER/.config/gcloud/mastr/application_default_credentials.json
-GCP_PROJECT_ID=mastr-project-1126
+GCP_PROJECT_ID=your-gcp-project-id
+BQ_LOCATION=europe-west3
+BQ_MARTS_DATASET=mastr_marts
 ```
 
 `GOOGLE_APPLICATION_CREDENTIALS` here should point at that **ADC file**, not a service-account JSON private key. The dashboard builds `bigquery.Client` via ADC (`google.auth` default credentials).
@@ -48,7 +50,7 @@ Do **not** create or mount service-account private keys for this PoC.
 
 ```bash
 cd /path/to/mastr-project/mastr-dashboard
-cp .env.example .env   # set YOUR_USER path and project if needed
+cp .env.sample .env   # set YOUR_USER path and project if needed
 poetry install
 ```
 

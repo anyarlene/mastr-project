@@ -10,9 +10,8 @@ import pandas as pd
 from dotenv import load_dotenv
 from google.cloud import bigquery
 
-DEFAULT_PROJECT_ID = "mastr-project-1126"
-DATASET = "mastr_marts"
-LOCATION = "europe-west3"
+# Product Gold dataset contract (overridable via BQ_MARTS_DATASET).
+DEFAULT_MARTS_DATASET = "mastr_marts"
 
 KW_TO_MW = 1000.0
 KWH_TO_MWH = 1000.0
@@ -36,28 +35,52 @@ def _load_env() -> None:
     _ENV_LOADED = True
 
 
-def get_project_id() -> str:
-    """Return the BigQuery project id (env override or dedicated-project default)."""
+def _require_env(name: str) -> str:
     _load_env()
-    value = os.environ.get("GCP_PROJECT_ID", DEFAULT_PROJECT_ID).strip()
-    return value or DEFAULT_PROJECT_ID
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise ValueError(
+            f"Missing required environment variable: {name}. "
+            f"Set it in .env (see .env.sample) or the process environment."
+        )
+    return value
+
+
+def get_project_id() -> str:
+    """Return the BigQuery project id from GCP_PROJECT_ID."""
+    return _require_env("GCP_PROJECT_ID")
+
+
+def get_location() -> str:
+    """Return the BigQuery location from BQ_LOCATION."""
+    return _require_env("BQ_LOCATION")
+
+
+def get_marts_dataset() -> str:
+    """Return the Gold/marts dataset (BQ_MARTS_DATASET or product default)."""
+    _load_env()
+    value = os.environ.get("BQ_MARTS_DATASET", DEFAULT_MARTS_DATASET).strip()
+    return value or DEFAULT_MARTS_DATASET
 
 
 @lru_cache(maxsize=1)
 def get_client() -> bigquery.Client:
     """Build a BigQuery client via Application Default Credentials (ADC)."""
-    _load_env()
-    return bigquery.Client(project=get_project_id(), location=LOCATION)
+    return bigquery.Client(project=get_project_id(), location=get_location())
 
 
 def run_query(sql: str) -> pd.DataFrame:
     """Execute a read-only SQL query and return a DataFrame."""
-    return get_client().query(sql, location=LOCATION).to_dataframe(create_bqstorage_client=False)
+    location = get_location()
+    return get_client().query(sql, location=location).to_dataframe(
+        create_bqstorage_client=False
+    )
 
 
 def load_municipality_capacity() -> pd.DataFrame:
     """Latest operational capacity per municipality from the Gold mart."""
     project = get_project_id()
+    dataset = get_marts_dataset()
     sql = f"""
     select
         municipality_id,
@@ -73,7 +96,7 @@ def load_municipality_capacity() -> pd.DataFrame:
         operational_storage_capacity_kwh,
         operational_generation_unit_count,
         operational_storage_unit_count
-    from `{project}.{DATASET}.mart_municipality_capacity`
+    from `{project}.{dataset}.mart_municipality_capacity`
     order by municipality_name
     """
     return run_query(sql)
@@ -82,6 +105,7 @@ def load_municipality_capacity() -> pd.DataFrame:
 def load_capacity_by_energy_source() -> pd.DataFrame:
     """Operational generation capacity (kW) by energy source for the mart snapshot."""
     project = get_project_id()
+    dataset = get_marts_dataset()
     sql = f"""
     select
         e.energy_source_code,
@@ -90,10 +114,10 @@ def load_capacity_by_energy_source() -> pd.DataFrame:
         sum(f.generation_power_kw) as generation_power_kw,
         sum(f.storage_capacity_kwh) as storage_capacity_kwh,
         count(*) as unit_count
-    from `{project}.{DATASET}.fct_mastr_units` as f
-    inner join `{project}.{DATASET}.dim_energy_source` as e
+    from `{project}.{dataset}.fct_mastr_units` as f
+    inner join `{project}.{dataset}.dim_energy_source` as e
         on f.energy_source_id = e.energy_source_id
-    inner join `{project}.{DATASET}.mart_municipality_capacity` as m
+    inner join `{project}.{dataset}.mart_municipality_capacity` as m
         on f.snapshot_date = m.snapshot_date
         and f.municipality_id = m.municipality_id
     where f.is_operational = true

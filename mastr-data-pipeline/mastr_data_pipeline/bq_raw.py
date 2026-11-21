@@ -19,10 +19,6 @@ from mastr_data_pipeline.raw_schema import (
     raw_table_schema_fields,
 )
 
-DEFAULT_DATASET = "mastr_raw"
-DEFAULT_LOCATION = "europe-west3"
-
-
 @dataclass(frozen=True)
 class RawLoadResult:
     snapshot_date: str
@@ -35,7 +31,7 @@ class RawLoadResult:
     staging_tables: tuple[str, ...] = ()
 
 
-def get_bq_client(project_id: str, location: str = DEFAULT_LOCATION) -> bigquery.Client:
+def get_bq_client(project_id: str, location: str) -> bigquery.Client:
     return bigquery.Client(project=project_id, location=location)
 
 
@@ -63,7 +59,7 @@ def ensure_dataset(
     client: bigquery.Client,
     project_id: str,
     dataset: str,
-    location: str = DEFAULT_LOCATION,
+    location: str,
 ) -> None:
     ds = bigquery.Dataset(f"{project_id}.{dataset}")
     ds.location = location
@@ -365,14 +361,17 @@ def load_snapshot_to_raw(
     project_id: str,
     bucket: str,
     snapshot_date: str,
-    dataset: str = DEFAULT_DATASET,
-    location: str = DEFAULT_LOCATION,
+    dataset: str,
+    location: str,
     client: bigquery.Client | None = None,
     ingested_at: datetime | None = None,
     keep_staging: bool = False,
 ) -> RawLoadResult:
     """
     Validate-then-replace loader for one snapshot_date into four Raw tables.
+
+    ``dataset`` and ``location`` are required (typically Settings.bq_dataset /
+    Settings.bq_location from env vars BQ_DATASET / BQ_LOCATION).
 
     1) Ensure dataset and split Raw tables exist (legacy backup table untouched)
     2) Build per-source staging from GCS Bronze

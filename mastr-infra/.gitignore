@@ -17,8 +17,8 @@ tfplan
 
 # Variable files may contain environment-specific values
 *.tfvars
-!terraform.tfvars.example
-!*.tfvars.example
+!terraform.tfvars.sample
+!*.tfvars.sample
 
 # Credentials and keys
 .env

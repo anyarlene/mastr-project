@@ -25,7 +25,7 @@ mastr-infra/
     bigquery.tf
     iam.tf
     outputs.tf
-    terraform.tfvars.example
+    terraform.tfvars.sample
 ```
 
 Flat Terraform layout; no modules.
@@ -106,7 +106,7 @@ state from unrelated project backends.
 
 ```bash
 cd terraform
-cp terraform.tfvars.example terraform.tfvars   # if needed
+cp terraform.tfvars.sample terraform.tfvars   # if needed
 # terraform init    # only after Phase C approval
 # terraform validate
 # terraform plan -out=tfplan

@@ -1,123 +1,163 @@
-//// MaStR star schema (Gold / Marts)
+//// MaStR star schema (Gold / Marts) — dbdiagram.io compatible
 ////
 //// Pipeline path:
 ////   4 CSVs → GCS Bronze → 4 BigQuery Raw tables (mastr_raw)
 ////         → 4 Staging views (mastr_staging)
 ////         → int_mastr_units (mastr_intermediate; UNION ALL + classification)
-////         → Gold dims / fct / mart (mastr_marts)
+////         → Gold dims / facts / mart (mastr_marts)
 ////
-//// Raw German CSVs remain immutable in GCS.
-//// Lineage columns (source_file, snapshot_date, ingested_at) are set at
-//// BigQuery raw load and preserved through dbt.
-//// English names and categorical codes are applied in Staging
-//// (shared macro select_stg_mastr_units);
-//// Intermediate adds classification and measure splits;
-//// Marts are English-only analytical tables.
-//// SCD Type 2 is designed for later (dbt snapshots); not implemented in v1.
+//// Dataset: mastr_marts (europe-west3). Materialization: table (unless noted).
+//// This file documents persisted Gold tables only.
 ////
-//// Le Wagon layering:
-////   raw (GCS/BigQuery) → staging → intermediate → dimensions + fact + marts
+//// Not diagrammed (ephemeral / intermediate helpers):
+////   - complete_snapshots (ephemeral) — completeness filter for dims/mart
+////   - cdc_eligible_snapshots (ephemeral) — complete + export_scope=all_statuses
+////   - int_mastr_unit_cdc (view in mastr_intermediate) — source of CDC fact
 ////
-//// This file documents Gold only. Raw/Staging live in BigQuery as noted above.
+//// Snapshot semantics:
+////   A snapshot_date is complete when all four expected CSVs match
+////   seed_snapshot_expectations and Raw/Staging/Intermediate counts align.
+////   mart_municipality_capacity uses only max(complete snapshot_date).
+////
+//// CDC semantics (fct_mastr_unit_changes):
+////   Compares consecutive CDC-eligible complete snapshots (all_statuses only;
+////   legacy_mixed_filters dates such as 2026-11-09 are never endpoints).
+////   change_type ∈ {INSERT, UPDATE, DELETE_CANDIDATE}; UNCHANGED excluded.
+////   DELETE_CANDIDATE = present in earlier snapshot, absent in later — not a
+////   confirmed physical deletion. Observation dates only (no valid_from/to).
+////   Not SCD Type 2. With a single eligible snapshot, the fact is empty.
+////
+//// SCD Type 2 (dbt snapshots) is deferred and not represented here.
 
 Table dim_municipality {
   municipality_id varchar [pk, note: 'AGS natural key (8-digit)']
-  municipality_name varchar
+  municipality_name varchar [not null]
   district varchar
   federal_state varchar
 
   Note: '''
-  Grain: one row per municipality_id ever observed in Intermediate.
-  Attributes selected deterministically (prefer latest complete snapshot).
+  Materialized table. Grain: one row per municipality_id ever observed in Intermediate.
+  Attributes chosen deterministically (prefer latest complete snapshot, then
+  latest snapshot_date, then stable tie-breaks).
   '''
 }
 
 Table dim_energy_source {
   energy_source_id int [pk, note: 'Surrogate key from seed_energy_sources']
-  energy_source_code varchar [unique, note: 'wind | solar | biomass | battery | hydrogen_storage | other_storage | unknown']
+  energy_source_code varchar [unique, not null, note: 'wind | solar | biomass | battery | hydrogen_storage | other_storage | unknown']
   energy_source_label varchar
-  energy_source_group varchar [note: 'generation | storage | unknown']
+  energy_source_group varchar [not null, note: 'generation | storage | unknown']
 
-  Note: 'English-only reference dimension. Built from seed_energy_sources.csv.'
+  Note: 'Materialized table. English-only reference dimension from seed_energy_sources.'
 }
 
 Table dim_status {
   status_id int [pk, note: 'Surrogate key from seed_statuses']
-  status_code varchar [unique, note: 'operational | planned | decommissioned | unknown']
+  status_code varchar [unique, not null, note: 'operational | planned | decommissioned | temporarily_decommissioned | unknown']
   status_label varchar
-  is_operational boolean [note: 'True only for operational']
+  is_operational boolean [not null, note: 'True only for operational']
 
-  Note: 'English-only reference dimension. Built from seed_statuses.csv.'
+  Note: 'Materialized table. English-only reference dimension from seed_statuses.'
 }
 
 Table fct_mastr_units {
-  snapshot_date date
-  unit_id varchar
+  snapshot_date date [not null]
+  unit_id varchar [not null]
 
-  municipality_id varchar [ref: > dim_municipality.municipality_id]
-  energy_source_id int [ref: > dim_energy_source.energy_source_id]
-  status_id int [ref: > dim_status.status_id]
+  municipality_id varchar [not null]
+  energy_source_id int [not null]
+  status_id int [not null]
 
   unit_name varchar
   storage_id varchar
-  is_operational boolean
+  is_operational boolean [not null]
 
-  source_file varchar
-  ingested_at timestamp
-
-  generation_power_kw decimal [note: 'Net kW; generation units only']
-  storage_power_kw decimal [note: 'Net kW; storage units only']
-  storage_capacity_kwh decimal [note: 'Usable kWh; storage only']
-  gross_power_kw decimal [note: 'Audit only — not used for municipality headlines']
+  generation_power_kw numeric [note: 'Net kW; generation units only (else null)']
+  storage_power_kw numeric [note: 'Net kW; storage units only (else null)']
+  storage_capacity_kwh numeric [note: 'Usable kWh; storage only (else null)']
+  gross_power_kw numeric [note: 'Audit / nameplate — not used for municipality headlines']
 
   commissioning_date date
   planned_commissioning_date date
   decommissioned_date date
-  last_updated_at date
+  last_updated_at date [note: 'Parsed MaStR date field; not a timestamp']
+
+  source_file varchar [not null]
+  ingested_at timestamp [not null, note: 'UTC Raw load timestamp']
 
   indexes {
     (snapshot_date, unit_id) [pk]
   }
 
   Note: '''
-  Grain: one installation unit per snapshot_date.
+  Materialized table. Grain: one installation unit per snapshot_date.
+  Built from int_mastr_units joined to the three dims.
   Unknown energy classifications are retained for investigation.
+  dbt relationship tests enforce FKs to dim_municipality, dim_energy_source, dim_status.
   '''
 }
 
 Table mart_municipality_capacity {
-  municipality_id varchar [pk, ref: > dim_municipality.municipality_id]
+  municipality_id varchar [pk]
   municipality_name varchar
   district varchar
   federal_state varchar
-  snapshot_date date [note: 'Latest complete snapshot only']
+  snapshot_date date [not null, note: 'Latest complete snapshot only']
 
-  operational_generation_power_kw decimal
-  operational_wind_power_kw decimal
-  operational_solar_power_kw decimal
-  operational_biomass_power_kw decimal
+  operational_generation_power_kw numeric [not null]
+  operational_wind_power_kw numeric
+  operational_solar_power_kw numeric
+  operational_biomass_power_kw numeric
 
-  operational_storage_power_kw decimal
-  operational_storage_capacity_kwh decimal
-  operational_battery_power_kw decimal
-  operational_battery_capacity_kwh decimal
-  operational_hydrogen_storage_power_kw decimal
-  operational_hydrogen_storage_capacity_kwh decimal
+  operational_storage_power_kw numeric [not null]
+  operational_storage_capacity_kwh numeric [not null]
+  operational_battery_power_kw numeric
+  operational_battery_capacity_kwh numeric
+  operational_hydrogen_storage_power_kw numeric
+  operational_hydrogen_storage_capacity_kwh numeric
 
   operational_generation_unit_count int
   operational_storage_unit_count int
 
   Note: '''
-  Grain: one row per municipality at the latest COMPLETE snapshot_date.
-  Complete = four expected files + expected row counts (from config/snapshots.json
-  via seed_snapshot_expectations) + Raw/Staging/Intermediate count alignment.
-  Operational installations only; unknown energy_source_group excluded.
+  Materialized table. Grain: one row per municipality at the latest complete snapshot_date.
+  All dim_municipality rows are retained (left join); municipalities with no
+  operational generation/storage units show zero measures.
+  Operational installations only; unknown energy_source_group excluded from totals.
   Generation kW, storage kW, and storage kWh remain separate.
   '''
 }
 
-//// ---------------------------------------------------------------------------
-//// Future SCD Type 2 (NOT implemented in v1)
-//// Preferred: dbt snapshots on a unit-attribute model, producing
-////   valid_from / valid_to / is_current (dbt_valid_from, dbt_valid_to, …).
-//// ---------------------------------------------------------------------------
+Table fct_mastr_unit_changes {
+  from_snapshot_date date [not null, note: 'Earlier CDC-eligible snapshot']
+  to_snapshot_date date [not null, note: 'Later CDC-eligible snapshot']
+  unit_id varchar [not null]
+  source_file varchar [not null, note: 'wind.csv | solar.csv | biomass.csv | battery.csv']
+  change_type varchar [not null, note: 'INSERT | UPDATE | DELETE_CANDIDATE']
+
+  before_status_code varchar [note: 'Null on INSERT']
+  after_status_code varchar [note: 'Null on DELETE_CANDIDATE']
+  before_net_power_kw numeric
+  after_net_power_kw numeric
+  before_storage_capacity_kwh numeric
+  after_storage_capacity_kwh numeric
+  before_municipality_id varchar [note: 'Null on INSERT; AGS when present']
+  after_municipality_id varchar [note: 'Null on DELETE_CANDIDATE; AGS when present']
+
+  indexes {
+    (from_snapshot_date, to_snapshot_date, unit_id) [pk]
+  }
+
+  Note: '''
+  Materialized table. Selects non-UNCHANGED rows from int_mastr_unit_cdc.
+  Grain: (from_snapshot_date, to_snapshot_date, unit_id).
+  Tracked attributes: status_code, net_power_kw, storage_capacity_kwh, municipality_id.
+  No dbt relationship tests to dims (status/municipality stored as codes/IDs that
+  may be null depending on change_type). Not SCD Type 2.
+  '''
+}
+
+Ref: fct_mastr_units.municipality_id > dim_municipality.municipality_id
+Ref: fct_mastr_units.energy_source_id > dim_energy_source.energy_source_id
+Ref: fct_mastr_units.status_id > dim_status.status_id
+Ref: mart_municipality_capacity.municipality_id > dim_municipality.municipality_id

@@ -7,8 +7,8 @@ Terraform configuration for MaStR GCP resources in the dedicated project
 - `mastr-airflow` (orchestration)
 
 This stack **creates** MaStR infrastructure in the dedicated project. It must
-not manage, import, or modify the Le Wagon bootcamp project
-`your-gcp-project-id` or its resources.
+not manage, import, or modify unrelated GCP projects (for example training or
+bootcamp projects), their resources, or their credentials.
 
 ## Layout
 
@@ -28,7 +28,7 @@ mastr-infra/
     terraform.tfvars.example
 ```
 
-Le Wagon–style flat files; no modules.
+Flat Terraform layout; no modules.
 
 ## What Terraform manages
 
@@ -43,12 +43,12 @@ Le Wagon–style flat files; no modules.
 
 - The existing runtime service account `mastr-runtime` (looked up via data source)
 - Project-level `roles/bigquery.jobUser` on `mastr-runtime` (already granted out-of-band)
-- Service account keys / `~/.gcp_keys/*.json`
+- Service-account private keys / JSON key files
 - GCS objects (Bronze CSVs)
 - BigQuery tables, views, seeds
 - Dataset ACL `access` blocks (see below)
 - The Terraform state bucket `mastr-project-1126-tfstate` (created out-of-band; preserve its security settings)
-- Bootcamp project resources
+- Unrelated GCP project resources or credentials
 - Airflow Docker / VM runtime
 - Dashboard read-only service account (deferred)
 
@@ -90,7 +90,7 @@ project via Terraform variables / explicit `--project` flags when verifying.
 
 Backend (`terraform/backend.tf`):
 
-- Bucket: `mastr-project-1126-tfstate` (exclusive; no bootcamp state)
+- Bucket: `mastr-project-1126-tfstate` (exclusive to this dedicated project)
 - Prefix: `mastr-infra`
 - Location: `europe-west3`
 - Uniform bucket-level access: enabled
@@ -100,7 +100,7 @@ Backend (`terraform/backend.tf`):
 - Access: operators only — **not** the runtime SA
 
 This stack does not create or modify the state bucket. Do not copy or migrate
-state from the bootcamp backend.
+state from unrelated project backends.
 
 ## Local setup (after approval)
 

@@ -1,0 +1,190 @@
+version: 2
+
+models:
+  - name: complete_snapshots
+    description: >
+      Ephemeral completeness helper. A snapshot_date is complete when all four
+      expected source files match seed_snapshot_expectations and Raw, Staging,
+      and Intermediate row counts agree per source_file. Used by dims/mart
+      filters; not materialized as a table.
+
+  - name: dim_municipality
+    description: >
+      Municipality dimension. Includes every municipality_id observed in Intermediate.
+      Attributes are selected deterministically (prefer latest complete snapshot).
+    columns:
+      - name: municipality_id
+        description: 8-digit AGS natural key.
+        tests:
+          - unique
+          - not_null
+      - name: municipality_name
+        description: Municipality name.
+        tests:
+          - not_null
+      - name: district
+        description: District name.
+      - name: federal_state
+        description: Federal state name.
+
+  - name: dim_energy_source
+    description: Energy-source reference dimension (from seed_energy_sources).
+    columns:
+      - name: energy_source_id
+        description: Surrogate key.
+        tests:
+          - unique
+          - not_null
+      - name: energy_source_code
+        description: English energy-source code.
+        tests:
+          - unique
+          - not_null
+          - accepted_values:
+              values:
+                - wind
+                - solar
+                - biomass
+                - battery
+                - hydrogen_storage
+                - other_storage
+                - unknown
+      - name: energy_source_group
+        description: generation | storage | unknown.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['generation', 'storage', 'unknown']
+
+  - name: dim_status
+    description: Operational-status reference dimension (from seed_statuses).
+    columns:
+      - name: status_id
+        description: Surrogate key.
+        tests:
+          - unique
+          - not_null
+      - name: status_code
+        description: English status code.
+        tests:
+          - unique
+          - not_null
+          - accepted_values:
+              values:
+                - operational
+                - planned
+                - decommissioned
+                - temporarily_decommissioned
+                - unknown
+      - name: is_operational
+        description: True only for operational status.
+        tests:
+          - not_null
+
+  - name: fct_mastr_units
+    description: >
+      Installation-unit fact. Grain: one row per (snapshot_date, unit_id).
+      Unknown energy classifications are retained for investigation.
+    columns:
+      - name: snapshot_date
+        description: Snapshot partition date.
+        tests:
+          - not_null
+      - name: unit_id
+        description: Installation unit natural key.
+        tests:
+          - not_null
+      - name: municipality_id
+        description: FK to dim_municipality.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_municipality')
+              field: municipality_id
+      - name: energy_source_id
+        description: FK to dim_energy_source.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_energy_source')
+              field: energy_source_id
+      - name: status_id
+        description: FK to dim_status.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_status')
+              field: status_id
+      - name: is_operational
+        description: Denormalized operational flag.
+        tests:
+          - not_null
+      - name: source_file
+        description: Origin CSV filename.
+        tests:
+          - not_null
+      - name: ingested_at
+        description: Raw load timestamp (UTC).
+        tests:
+          - not_null
+
+  - name: mart_municipality_capacity
+    description: >
+      Operational generation and storage capacity by municipality for the
+      latest complete snapshot only. Unknown energy sources excluded.
+    columns:
+      - name: municipality_id
+        description: Municipality natural key.
+        tests:
+          - unique
+          - not_null
+          - relationships:
+              to: ref('dim_municipality')
+              field: municipality_id
+      - name: snapshot_date
+        description: Latest complete snapshot date used for this mart.
+        tests:
+          - not_null
+      - name: operational_generation_power_kw
+        description: Sum of operational generation net power (kW).
+        tests:
+          - not_null
+      - name: operational_storage_power_kw
+        description: Sum of operational storage net power (kW).
+        tests:
+          - not_null
+      - name: operational_storage_capacity_kwh
+        description: Sum of operational usable storage energy (kWh).
+        tests:
+          - not_null
+
+  - name: fct_mastr_unit_changes
+    description: >
+      Materialized CDC change events (INSERT, UPDATE, DELETE_CANDIDATE) between
+      consecutive complete all_statuses snapshots. Excludes UNCHANGED.
+      DELETE_CANDIDATE is not a confirmed deletion.
+    columns:
+      - name: from_snapshot_date
+        description: Earlier eligible snapshot observation date.
+        tests:
+          - not_null
+      - name: to_snapshot_date
+        description: Later eligible snapshot observation date.
+        tests:
+          - not_null
+      - name: unit_id
+        description: Installation unit natural key.
+        tests:
+          - not_null
+      - name: source_file
+        description: Origin CSV filename.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['wind.csv', 'solar.csv', 'biomass.csv', 'battery.csv']
+      - name: change_type
+        description: INSERT | UPDATE | DELETE_CANDIDATE.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['INSERT', 'UPDATE', 'DELETE_CANDIDATE']

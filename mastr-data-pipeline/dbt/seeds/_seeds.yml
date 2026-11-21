@@ -1,0 +1,68 @@
+version: 2
+
+seeds:
+  - name: seed_energy_sources
+    description: >
+      Reference dimension for English energy_source_code values
+      (wind, solar, biomass, battery, hydrogen_storage, other_storage, unknown).
+      Loaded into mastr_staging; consumed by dim_energy_source.
+    columns:
+      - name: energy_source_id
+        description: Surrogate key.
+      - name: energy_source_code
+        description: English energy-source code.
+      - name: energy_source_label
+        description: Human-readable label.
+      - name: energy_source_group
+        description: generation | storage | unknown.
+
+  - name: seed_statuses
+    description: >
+      Reference dimension for English status_code values
+      (operational, planned, decommissioned, temporarily_decommissioned, unknown).
+      Loaded into mastr_staging; consumed by dim_status.
+    columns:
+      - name: status_id
+        description: Surrogate key.
+      - name: status_code
+        description: English status code.
+      - name: status_label
+        description: Human-readable label.
+      - name: is_operational
+        description: True only for operational.
+
+  - name: seed_snapshot_expectations
+    description: >
+      Expected Raw row counts per (snapshot_date, source_file).
+      Generated from config/snapshots.json (make generate-snapshot-seed).
+      Used by complete_snapshots for load completeness.
+    columns:
+      - name: snapshot_date
+        description: Snapshot partition date.
+      - name: source_file
+        description: wind.csv | solar.csv | biomass.csv | battery.csv.
+      - name: expected_row_count
+        description: Expected number of rows after Raw load.
+
+  - name: seed_snapshot_metadata
+    description: >
+      Declared snapshot export_scope and cdc_baseline flags from
+      config/snapshots.json (not CSV columns). Used to select
+      all_statuses snapshots for CDC eligibility.
+    columns:
+      - name: snapshot_date
+        description: Snapshot partition date.
+        tests:
+          - unique
+          - not_null
+      - name: export_scope
+        description: all_statuses | legacy_mixed_filters.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['all_statuses', 'legacy_mixed_filters']
+      - name: cdc_baseline
+        description: True for CDC-eligible all_statuses baselines.
+        tests:
+          - not_null
+

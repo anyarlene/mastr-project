@@ -1,0 +1,137 @@
+version: 2
+
+models:
+  - name: int_mastr_units
+    description: >
+      Intermediate MaStR units: UNION ALL of the four Staging views
+      (stg_mastr_wind / _solar / _biomass / _storage), then English
+      energy-source classification, is_operational, and separated
+      generation/storage measures.
+      Grain: one row per (snapshot_date, unit_id).
+      Unknown classifications are preserved for investigation and excluded
+      from generation/storage capacity measures.
+    columns:
+      - name: unit_id
+        description: Installation unit natural key (SEE…).
+        tests:
+          - not_null
+      - name: storage_id
+        description: Storage registry ID (SSE…) when present.
+      - name: unit_name
+        description: Display name of the installation unit.
+      - name: status_code
+        description: English status code from Staging.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - operational
+                - planned
+                - decommissioned
+                - temporarily_decommissioned
+                - unknown
+      - name: is_operational
+        description: True only when status_code is operational.
+        tests:
+          - not_null
+      - name: energy_carrier_code
+        description: English energy-carrier code from Staging.
+        tests:
+          - not_null
+      - name: storage_technology_code
+        description: English storage technology code from Staging (null for generation).
+      - name: energy_source_code
+        description: >
+          English energy source (wind | solar | biomass | battery |
+          hydrogen_storage | other_storage | unknown).
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - wind
+                - solar
+                - biomass
+                - battery
+                - hydrogen_storage
+                - other_storage
+                - unknown
+      - name: energy_source_group
+        description: generation | storage | unknown.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['generation', 'storage', 'unknown']
+      - name: gross_power_kw
+        description: Gross / nameplate power in kW (audit).
+        tests:
+          - not_null
+      - name: net_power_kw
+        description: Net rated power in kW.
+        tests:
+          - not_null
+      - name: generation_power_kw
+        description: Net power for generation units only; null otherwise.
+      - name: storage_power_kw
+        description: Net power for storage units only; null otherwise.
+      - name: storage_capacity_kwh
+        description: Usable storage energy (kWh) for storage units only; null otherwise.
+      - name: municipality_id
+        description: 8-digit municipality AGS code.
+        tests:
+          - not_null
+      - name: municipality_name
+        description: Municipality name.
+      - name: district
+        description: District name.
+      - name: federal_state
+        description: Federal state name.
+      - name: source_file
+        description: Origin CSV within the snapshot.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['wind.csv', 'solar.csv', 'biomass.csv', 'battery.csv']
+      - name: snapshot_date
+        description: Snapshot partition date.
+        tests:
+          - not_null
+      - name: ingested_at
+        description: UTC timestamp of the Raw load.
+        tests:
+          - not_null
+
+  - name: int_mastr_unit_cdc
+    description: >
+      Snapshot-based CDC across consecutive complete all_statuses snapshots.
+      Grain: (from_snapshot_date, to_snapshot_date, unit_id). Includes
+      INSERT, UPDATE, DELETE_CANDIDATE, and UNCHANGED. November 9
+      (legacy_mixed_filters) is never an eligible CDC endpoint.
+    columns:
+      - name: from_snapshot_date
+        description: Earlier eligible snapshot observation date.
+        tests:
+          - not_null
+      - name: to_snapshot_date
+        description: Later eligible snapshot observation date.
+        tests:
+          - not_null
+      - name: unit_id
+        description: Installation unit natural key.
+        tests:
+          - not_null
+      - name: source_file
+        description: Origin CSV filename (prefer later snapshot when present).
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['wind.csv', 'solar.csv', 'biomass.csv', 'battery.csv']
+      - name: change_type
+        description: INSERT | UPDATE | DELETE_CANDIDATE | UNCHANGED.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - INSERT
+                - UPDATE
+                - DELETE_CANDIDATE
+                - UNCHANGED

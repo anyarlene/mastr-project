@@ -1,0 +1,3 @@
+snapshot_date,export_scope,cdc_baseline
+2026-11-09,legacy_mixed_filters,false
+2026-11-16,all_statuses,true

@@ -1,0 +1,34 @@
+# credentials and secrets
+.env
+.env.*
+!.env.sample
+!.env.example
+*.pem
+*.key
+**/credentials*.json
+**/*service*account*.json
+
+# local raw snapshots; original files are ingested unchanged into GCS
+data/raw/*
+!data/raw/.gitkeep
+
+# dbt-generated artifacts
+target/
+dbt_packages/
+dbt_modules/
+logs/
+.user.yml
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+test_output.txt
+dist/
+*.egg-info/
+
+# agent directories
+.cursor/
+.claude/
+.agent/

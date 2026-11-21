@@ -1,0 +1,123 @@
+//// MaStR star schema (Gold / Marts)
+////
+//// Pipeline path:
+////   4 CSVs → GCS Bronze → 4 BigQuery Raw tables (mastr_raw)
+////         → 4 Staging views (mastr_staging)
+////         → int_mastr_units (mastr_intermediate; UNION ALL + classification)
+////         → Gold dims / fct / mart (mastr_marts)
+////
+//// Raw German CSVs remain immutable in GCS.
+//// Lineage columns (source_file, snapshot_date, ingested_at) are set at
+//// BigQuery raw load and preserved through dbt.
+//// English names and categorical codes are applied in Staging
+//// (shared macro select_stg_mastr_units);
+//// Intermediate adds classification and measure splits;
+//// Marts are English-only analytical tables.
+//// SCD Type 2 is designed for later (dbt snapshots); not implemented in v1.
+////
+//// Le Wagon layering:
+////   raw (GCS/BigQuery) → staging → intermediate → dimensions + fact + marts
+////
+//// This file documents Gold only. Raw/Staging live in BigQuery as noted above.
+
+Table dim_municipality {
+  municipality_id varchar [pk, note: 'AGS natural key (8-digit)']
+  municipality_name varchar
+  district varchar
+  federal_state varchar
+
+  Note: '''
+  Grain: one row per municipality_id ever observed in Intermediate.
+  Attributes selected deterministically (prefer latest complete snapshot).
+  '''
+}
+
+Table dim_energy_source {
+  energy_source_id int [pk, note: 'Surrogate key from seed_energy_sources']
+  energy_source_code varchar [unique, note: 'wind | solar | biomass | battery | hydrogen_storage | other_storage | unknown']
+  energy_source_label varchar
+  energy_source_group varchar [note: 'generation | storage | unknown']
+
+  Note: 'English-only reference dimension. Built from seed_energy_sources.csv.'
+}
+
+Table dim_status {
+  status_id int [pk, note: 'Surrogate key from seed_statuses']
+  status_code varchar [unique, note: 'operational | planned | decommissioned | unknown']
+  status_label varchar
+  is_operational boolean [note: 'True only for operational']
+
+  Note: 'English-only reference dimension. Built from seed_statuses.csv.'
+}
+
+Table fct_mastr_units {
+  snapshot_date date
+  unit_id varchar
+
+  municipality_id varchar [ref: > dim_municipality.municipality_id]
+  energy_source_id int [ref: > dim_energy_source.energy_source_id]
+  status_id int [ref: > dim_status.status_id]
+
+  unit_name varchar
+  storage_id varchar
+  is_operational boolean
+
+  source_file varchar
+  ingested_at timestamp
+
+  generation_power_kw decimal [note: 'Net kW; generation units only']
+  storage_power_kw decimal [note: 'Net kW; storage units only']
+  storage_capacity_kwh decimal [note: 'Usable kWh; storage only']
+  gross_power_kw decimal [note: 'Audit only — not used for municipality headlines']
+
+  commissioning_date date
+  planned_commissioning_date date
+  decommissioned_date date
+  last_updated_at date
+
+  indexes {
+    (snapshot_date, unit_id) [pk]
+  }
+
+  Note: '''
+  Grain: one installation unit per snapshot_date.
+  Unknown energy classifications are retained for investigation.
+  '''
+}
+
+Table mart_municipality_capacity {
+  municipality_id varchar [pk, ref: > dim_municipality.municipality_id]
+  municipality_name varchar
+  district varchar
+  federal_state varchar
+  snapshot_date date [note: 'Latest complete snapshot only']
+
+  operational_generation_power_kw decimal
+  operational_wind_power_kw decimal
+  operational_solar_power_kw decimal
+  operational_biomass_power_kw decimal
+
+  operational_storage_power_kw decimal
+  operational_storage_capacity_kwh decimal
+  operational_battery_power_kw decimal
+  operational_battery_capacity_kwh decimal
+  operational_hydrogen_storage_power_kw decimal
+  operational_hydrogen_storage_capacity_kwh decimal
+
+  operational_generation_unit_count int
+  operational_storage_unit_count int
+
+  Note: '''
+  Grain: one row per municipality at the latest COMPLETE snapshot_date.
+  Complete = four expected files + expected row counts (from config/snapshots.json
+  via seed_snapshot_expectations) + Raw/Staging/Intermediate count alignment.
+  Operational installations only; unknown energy_source_group excluded.
+  Generation kW, storage kW, and storage kWh remain separate.
+  '''
+}
+
+//// ---------------------------------------------------------------------------
+//// Future SCD Type 2 (NOT implemented in v1)
+//// Preferred: dbt snapshots on a unit-attribute model, producing
+////   valid_from / valid_to / is_current (dbt_valid_from, dbt_valid_to, …).
+//// ---------------------------------------------------------------------------

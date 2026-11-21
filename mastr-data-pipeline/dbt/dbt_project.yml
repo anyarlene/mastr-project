@@ -1,0 +1,48 @@
+# MaStR dbt project
+# Path: 4 Raw tables → 4 Staging views → Intermediate → Gold
+# Datasets: mastr_staging (default + seeds) / mastr_intermediate / mastr_marts
+name: mastr
+version: 1.0.0
+config-version: 2
+profile: mastr
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+analysis-paths: ["analyses"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+models:
+  mastr:
+    staging:
+      +materialized: view
+      # Uses target.schema from profiles (mastr_staging). Do not set +schema here
+      # or BigQuery would get a concatenated suffix with the default macro.
+    intermediate:
+      +materialized: view
+      +schema: mastr_intermediate
+    marts:
+      +materialized: table
+      +schema: mastr_marts
+
+seeds:
+  mastr:
+    # Seeds land in the profile default dataset (mastr_staging).
+    seed_snapshot_expectations:
+      +column_types:
+        snapshot_date: date
+        expected_row_count: int64
+    seed_snapshot_metadata:
+      +column_types:
+        snapshot_date: date
+        cdc_baseline: bool
+    seed_energy_sources:
+      +column_types:
+        energy_source_id: int64
+    seed_statuses:
+      +column_types:
+        status_id: int64
+        is_operational: bool

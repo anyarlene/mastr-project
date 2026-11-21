@@ -1,0 +1,63 @@
+# Credentials and secrets
+.env
+.env.*
+!.env.sample
+!.env.example
+*.pem
+*.key
+**/credentials*.json
+**/*service*account*.json
+**/dbt-service-account.json
+.streamlit/secrets.toml
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+test_output.txt
+dist/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Local MaStR raw snapshots
+**/data/raw/*
+!**/data/raw/.gitkeep
+
+# dbt artifacts
+**/target/
+**/dbt_packages/
+**/dbt_modules/
+**/.user.yml
+
+# Airflow local runtime
+**/logs/
+**/database/
+airflow.cfg
+airflow.db
+webserver_config.py
+
+# Terraform local state and plugins
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+!*.tfvars.example
+!terraform.tfvars.example
+
+# Editor / OS
+.DS_Store
+*.swp
+*~
+
+# Agent-specific (do not commit)
+.cursor/
+.claude/
+.agent/

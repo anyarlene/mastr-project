@@ -32,19 +32,40 @@ Legacy table `mastr_raw.raw_mastr_units` is retained as a backup only; the loade
 
 - Python 3.12.8 (see `.python-version`)
 - [Poetry](https://python-poetry.org/)
-- GCP service account with access to the Bronze bucket and BigQuery datasets
-- dbt profile `mastr` in `~/.dbt/profiles.yml` (see `dbt/profiles.yml.example`)
+- Your dedicated GCP project, Bronze bucket, and BigQuery datasets
+- A runtime service account with access to that bucket and the MaStR datasets
+- Keyless Application Default Credentials (ADC) that can impersonate that runtime service account
+- dbt profile `mastr` in `~/.dbt/profiles.yml` (copy from `dbt/profiles.yml.sample`)
 
 ```bash
-cp .env.sample .env   # fill GCP_PROJECT_ID, GCS_BUCKET, GOOGLE_APPLICATION_CREDENTIALS
+cp .env.sample .env   # set GCP_PROJECT_ID, GCS_BUCKET, MASTR_RAW_DIR, BQ_DATASET, BQ_LOCATION
+# Leave GOOGLE_APPLICATION_CREDENTIALS unset (no JSON keyfile).
+# Export DBT_IMPERSONATE_SERVICE_ACCOUNT to your runtime SA email when using
+# profile-level impersonation (approach B in dbt/profiles.yml.sample).
 poetry install --with dbt
 ```
+
+### Authentication (keyless)
+
+dbt uses `method: oauth` and Application Default Credentials. Configure **your own**
+GCP project id and runtime service-account email; do not commit those values.
+
+Pick exactly one approach (see comments in `dbt/profiles.yml.sample`):
+
+1. **Already-impersonated ADC** — create ADC with
+   `gcloud auth application-default login --impersonate-service-account=…`,
+   then omit `impersonate_service_account` from `~/.dbt/profiles.yml`.
+2. **Profile-level impersonation** — create ordinary user ADC with
+   `gcloud auth application-default login`, keep
+   `impersonate_service_account: "{{ env_var('DBT_IMPERSONATE_SERVICE_ACCOUNT') }}"`
+   in the profile, and export that env var.
 
 ## Configuration
 
 | Source | Role |
 |---|---|
-| `.env` | Required: `GCP_PROJECT_ID`, `GCS_BUCKET`, `GOOGLE_APPLICATION_CREDENTIALS`, `MASTR_RAW_DIR`, `BQ_DATASET`, `BQ_LOCATION` |
+| `.env` | Required: `GCP_PROJECT_ID`, `GCS_BUCKET`, `MASTR_RAW_DIR`, `BQ_DATASET`, `BQ_LOCATION`. Optional for dbt approach B: `DBT_IMPERSONATE_SERVICE_ACCOUNT`. Leave `GOOGLE_APPLICATION_CREDENTIALS` unset for keyless ADC. |
+| `dbt/profiles.yml.sample` | Template for `~/.dbt/profiles.yml` (`method: oauth`, dataset `mastr_staging`, location `europe-west3`) |
 | `config/snapshots.json` | Snapshot SHA-256, row counts, and `export_scope` (single source of truth) |
 | `config/mastr_headers.json` | Expected German CSV headers (64 columns) |
 | `dbt/seeds/` | Reference dims + `seed_snapshot_expectations` (regenerate via Makefile) |

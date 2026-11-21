@@ -1,0 +1,44 @@
+# Sample dbt profile for MaStR. Merge the `mastr` block into ~/.dbt/profiles.yml.
+# Do not replace existing profiles (e.g. dbt_lewagon).
+#
+# Keyless authentication (dedicated MaStR GCP project):
+#   method: oauth  → Application Default Credentials (ADC)
+#   No JSON keyfile / GOOGLE_APPLICATION_CREDENTIALS.
+#
+# Two supported approaches (pick exactly one):
+#
+#   A) Already-impersonated ADC
+#      gcloud auth application-default login \
+#        --impersonate-service-account="${DBT_IMPERSONATE_SERVICE_ACCOUNT}"
+#      Then OMIT impersonate_service_account from the profile below
+#      (avoids double impersonation).
+#
+#   B) Profile-level service-account impersonation (ordinary user ADC)
+#      gcloud auth application-default login
+#      Keep impersonate_service_account below, set via env var.
+#
+# Required environment variables (from the repo .env or shell):
+#   GCP_PROJECT_ID                  e.g. your dedicated GCP project id
+#   DBT_IMPERSONATE_SERVICE_ACCOUNT e.g. runtime-sa@PROJECT_ID.iam.gserviceaccount.com
+#
+# Dataset architecture (do not change):
+#   default dataset = mastr_staging (seeds + staging views)
+#   intermediate / marts use model-level +schema
+#   (mastr_intermediate / mastr_marts) via generate_schema_name
+#   location = europe-west3
+
+mastr:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: mastr_staging
+      location: europe-west3
+      # Approach B only — remove this key when using approach A.
+      impersonate_service_account: "{{ env_var('DBT_IMPERSONATE_SERVICE_ACCOUNT') }}"
+      threads: 4
+      job_execution_timeout_seconds: 300
+      priority: interactive
+      job_retries: 1

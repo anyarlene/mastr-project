@@ -130,7 +130,7 @@ ls logs/dag_id=mastr_snapshot_pipeline/
 
 1. Work from the monorepo; Compose mounts `../mastr-data-pipeline` next to this directory.
 2. Copy `.env.sample` → `.env` and set your user paths for keys/profiles.
-3. Ensure `~/.dbt/profiles.yml` contains the `mastr` profile (see pipeline `dbt/profiles.yml.example`).
+3. Ensure `~/.dbt/profiles.yml` contains the `mastr` profile (see pipeline `dbt/profiles.yml.sample`).
 4. Do **not** mount or reuse a host Poetry `.venv`.
 5. Build and start Compose as above; trigger manually with your `snapshot_date`.
 

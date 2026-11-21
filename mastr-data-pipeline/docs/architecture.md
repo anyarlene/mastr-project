@@ -7,7 +7,7 @@ Follows Le Wagon Data Engineering layering:
 
 `raw → staging → intermediate → marts`
 
-Orchestration lives in a **separate** repository (`mastr-airflow`).
+Orchestration lives in the sibling monorepo directory `mastr-airflow`.
 
 Related docs:
 
@@ -34,10 +34,10 @@ flowchart TB
   DL["New MaStR exports<br/>Unresolved: automated download"]
   CSV["MaStR CSV snapshots<br/>data/raw/YYYY-MM-DD/<br/>Done"]
 
-  AF["mastr-airflow DAGs<br/>Planned"]
+  AF["mastr-airflow DAGs<br/>Done"]
 
   PY["Python ingestion<br/>mastr_data_pipeline/<br/>Done"]
-  GCS["GCS Bronze<br/>your-bronze-bucket-name<br/>Done"]
+  GCS["GCS Bronze<br/>mastr-project-1126-bronze<br/>Done"]
 
   BQRaw["BigQuery Raw (4 tables)<br/>raw_mastr_wind/solar/biomass/storage<br/>Done"]
 
@@ -57,7 +57,7 @@ flowchart TB
   INT --> MART
 ```
 
-**Airflow responsibilities (planned):** orchestrate Python ingestion to GCS Bronze, BigQuery Raw loading, dbt transformations (staging → intermediate → marts), and data quality tests.
+**Airflow responsibilities:** orchestrate Python ingestion to GCS Bronze, BigQuery Raw loading, dbt transformations (staging → intermediate → marts), and data quality tests.
 
 **Unresolved:** automated downloading of new MaStR exports. Until that exists, snapshots are supplied manually under `data/raw/<snapshot_date>/` and mirrored to GCS by ingestion.
 
@@ -100,7 +100,7 @@ Datasets (all `europe-west3`): `mastr_raw`, `mastr_staging`, `mastr_intermediate
 | Local snapshot `data/raw/2026-11-16/` | **Done (local)** | All-statuses CDC baseline; Data Contract registered; not ingested yet |
 | Data Contract (`validate-snapshot`) | **Done** | Enforced before Bronze; see `docs/data_validation.md` |
 | Python Bronze ingestion package + tests | **Done** | CLI: `poetry run python -m mastr_data_pipeline ingest-bronze --snapshot-date …` |
-| GCS bucket `your-bronze-bucket-name` | **Done** | `europe-west3`; objects under `bronze/mastr/snapshot_date=…/` |
+| GCS bucket `mastr-project-1126-bronze` | **Done** | `europe-west3`; objects under `bronze/mastr/snapshot_date=…/` |
 | Automated MaStR export download | **Unresolved** | Separate from upload |
 
 GCS Bronze objects stay immutable. No cleaning in place on the objects.
@@ -154,7 +154,7 @@ Seeds (land in `mastr_staging`): `seed_energy_sources`, `seed_statuses`, `seed_s
 | Item | Status | Notes |
 |---|---|---|
 | Repo scaffold | **Done** | `dags/`, `scripts/`, `tests/`, Poetry `package-mode = false` |
-| DAGs | **Planned** | Python ingest → BigQuery Raw load → dbt run → dbt test |
+| DAGs | **Done** | Python ingest → BigQuery Raw load → dbt run → dbt test |
 
 ### 5. Data quality, completeness, future CDC / SCD2
 
@@ -189,7 +189,7 @@ latest_complete_snapshot_date =
 
 | Done | Planned | Unresolved |
 |---|---|---|
-| Two-repo scaffold + docs | Airflow DAGs | Automated MaStR export download |
+| Monorepo scaffold + docs + Airflow DAGs | | Automated MaStR export download |
 | Local CSV snapshot `2026-11-09` | SCD Type 2 / CDC (dbt snapshots) | |
 | Python → GCS Bronze + BigQuery Raw (4 tables) | | |
 | dbt Staging (4 views), Intermediate, Marts + tests | | |
@@ -214,4 +214,4 @@ latest_complete_snapshot_date =
 2. Keep raw extracts under `data/raw/<snapshot_date>/` locally (gitignored) and mirror them immutably in GCS via ingestion.
 3. Record SHA-256 and **snapshot-specific** expected row counts in `config/snapshots.json` (and regenerate the seed) before promoting a snapshot.
 4. Load Raw idempotently (validate then replace per `snapshot_date`); promote only **complete** snapshots to municipality reporting.
-5. Transform with dbt (`staging → intermediate → marts`); orchestrate ingest, BigQuery load, dbt run, and tests with Airflow in the sister repo when DAGs exist.
+5. Transform with dbt (`staging → intermediate → marts`); orchestrate ingest, BigQuery load, dbt run, and tests with Airflow in the sibling `mastr-airflow` directory.

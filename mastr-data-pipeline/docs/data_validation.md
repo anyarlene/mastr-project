@@ -1,7 +1,7 @@
 # MaStR source data validation
 
 **Snapshot folder:** `data/raw/2026-11-09/`  
-**Validated:** 2026-11-15 (GCP VM `example-dev-vm`)  
+**Validated:** 2026-11-15 (development VM)
 **Scope:** read-only inspection of four Marktstammdatenregister CSV extracts
 
 ## Source files

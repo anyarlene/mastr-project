@@ -2,7 +2,7 @@
 
 Proof-of-concept Streamlit dashboard for operational renewable generation and storage capacity across **38 municipalities in Potsdam-Mittelmark** (Brandenburg).
 
-Data is read **read-only** from BigQuery Gold tables in project `your-gcp-project-id`, dataset `mastr_marts`.
+Data is read **read-only** from BigQuery Gold tables in dataset `mastr_marts` (`europe-west3`). The default project is `mastr-project-1126`; override with `GCP_PROJECT_ID` if needed.
 
 ## Features
 
@@ -19,19 +19,36 @@ Data is read **read-only** from BigQuery Gold tables in project `your-gcp-projec
 
 - Python 3.12+
 - Poetry
-- Local GCP service account with BigQuery read access (reuse existing key)
+- Keyless GCP Application Default Credentials (ADC) with BigQuery read access to `mastr_marts`
 
-Default credentials path:
+### Authentication (ADC)
+
+Prefer the MaStR-specific ADC file:
 
 ```text
-~/.gcp_keys/dbt-service-account.json
+~/.config/gcloud/mastr/application_default_credentials.json
 ```
+
+In `.env` (see `.env.example`), set:
+
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=/home/YOUR_USER/.config/gcloud/mastr/application_default_credentials.json
+GCP_PROJECT_ID=mastr-project-1126
+```
+
+`GOOGLE_APPLICATION_CREDENTIALS` here should point at that **ADC file**, not a service-account JSON private key. The dashboard builds `bigquery.Client` via ADC (`google.auth` default credentials).
+
+A separate MaStR ADC **path** only isolates which credentials file is loaded. It does **not** create a different Google user identity and does **not** grant a separate refresh-token. The file still represents the same user credential (and impersonation target) that produced it.
+
+Do **not** run `gcloud auth application-default login` solely for this dashboard if that would replace an existing default ADC you still need. If you already have a suitable already-impersonated ADC, copy it into the MaStR path above.
+
+Do **not** create or mount service-account private keys for this PoC.
 
 ## Install
 
 ```bash
 cd /path/to/mastr-project/mastr-dashboard
-cp .env.example .env   # optional
+cp .env.example .env   # set YOUR_USER path and project if needed
 poetry install
 ```
 
@@ -50,6 +67,8 @@ Open the URL shown in the terminal (usually `http://localhost:8501`).
 cd /path/to/mastr-project/mastr-dashboard
 poetry run pytest -v
 ```
+
+Tests do not call BigQuery or read credential contents.
 
 ## Data sources
 

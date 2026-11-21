@@ -10,7 +10,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from google.cloud import bigquery
 
-PROJECT_ID = "your-gcp-project-id"
+DEFAULT_PROJECT_ID = "mastr-project-1126"
 DATASET = "mastr_marts"
 LOCATION = "europe-west3"
 
@@ -24,18 +24,30 @@ GENERATION_SOURCES = {
     "biomass": "Biomass",
 }
 
+_ENV_LOADED = False
 
-def _default_credentials_path() -> str:
-    return os.path.expanduser("~/.gcp_keys/dbt-service-account.json")
+
+def _load_env() -> None:
+    """Load dashboard .env once (if present). Does not override existing env vars."""
+    global _ENV_LOADED
+    if _ENV_LOADED:
+        return
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+    _ENV_LOADED = True
+
+
+def get_project_id() -> str:
+    """Return the BigQuery project id (env override or dedicated-project default)."""
+    _load_env()
+    value = os.environ.get("GCP_PROJECT_ID", DEFAULT_PROJECT_ID).strip()
+    return value or DEFAULT_PROJECT_ID
 
 
 @lru_cache(maxsize=1)
 def get_client() -> bigquery.Client:
-    """Build a BigQuery client from local service-account credentials."""
-    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-    keyfile = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", _default_credentials_path())
-    project = os.environ.get("GCP_PROJECT_ID", PROJECT_ID)
-    return bigquery.Client.from_service_account_json(keyfile, project=project, location=LOCATION)
+    """Build a BigQuery client via Application Default Credentials (ADC)."""
+    _load_env()
+    return bigquery.Client(project=get_project_id(), location=LOCATION)
 
 
 def run_query(sql: str) -> pd.DataFrame:
@@ -45,6 +57,7 @@ def run_query(sql: str) -> pd.DataFrame:
 
 def load_municipality_capacity() -> pd.DataFrame:
     """Latest operational capacity per municipality from the Gold mart."""
+    project = get_project_id()
     sql = f"""
     select
         municipality_id,
@@ -60,7 +73,7 @@ def load_municipality_capacity() -> pd.DataFrame:
         operational_storage_capacity_kwh,
         operational_generation_unit_count,
         operational_storage_unit_count
-    from `{PROJECT_ID}.{DATASET}.mart_municipality_capacity`
+    from `{project}.{DATASET}.mart_municipality_capacity`
     order by municipality_name
     """
     return run_query(sql)
@@ -68,6 +81,7 @@ def load_municipality_capacity() -> pd.DataFrame:
 
 def load_capacity_by_energy_source() -> pd.DataFrame:
     """Operational generation capacity (kW) by energy source for the mart snapshot."""
+    project = get_project_id()
     sql = f"""
     select
         e.energy_source_code,
@@ -76,10 +90,10 @@ def load_capacity_by_energy_source() -> pd.DataFrame:
         sum(f.generation_power_kw) as generation_power_kw,
         sum(f.storage_capacity_kwh) as storage_capacity_kwh,
         count(*) as unit_count
-    from `{PROJECT_ID}.{DATASET}.fct_mastr_units` as f
-    inner join `{PROJECT_ID}.{DATASET}.dim_energy_source` as e
+    from `{project}.{DATASET}.fct_mastr_units` as f
+    inner join `{project}.{DATASET}.dim_energy_source` as e
         on f.energy_source_id = e.energy_source_id
-    inner join `{PROJECT_ID}.{DATASET}.mart_municipality_capacity` as m
+    inner join `{project}.{DATASET}.mart_municipality_capacity` as m
         on f.snapshot_date = m.snapshot_date
         and f.municipality_id = m.municipality_id
     where f.is_operational = true

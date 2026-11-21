@@ -75,6 +75,8 @@ Each application component keeps its own Poetry environment, Makefile (where pre
 
 ## Data modelling
 
+![MaStR Gold data model](mastr-data-pipeline/docs/schema.svg)
+
 Layering follows **Raw → Staging → Intermediate → Gold**:
 
 | Layer | Dataset (product contract) | Role |

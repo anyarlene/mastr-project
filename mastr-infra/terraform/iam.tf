@@ -1,43 +1,34 @@
-# Existing dbt runtime service account and additive MaStR IAM memberships.
+# Existing MaStR runtime service account and additive IAM memberships.
 # Use google_*_iam_member only (additive). Do not use iam_binding / iam_policy.
-# Do not create or manage service account keys.
+# Do not create or manage service accounts or service account keys.
+#
+# Project-level roles/bigquery.jobUser is already granted to mastr-runtime
+# outside this stack — do not manage that binding here.
 
-resource "google_service_account" "dbt" {
-  project      = var.project_id
-  account_id   = var.dbt_service_account_id
-  display_name = var.dbt_service_account_display_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
+data "google_service_account" "runtime" {
+  account_id = var.runtime_service_account_id
+  project    = var.project_id
 }
 
-# Project-level roles observed on the live dbt SA (Step 12A).
-resource "google_project_iam_member" "dbt_bigquery_job_user" {
-  project = var.project_id
-  role    = "roles/bigquery.jobUser"
-  member  = "serviceAccount:${google_service_account.dbt.email}"
+# Dataset-scoped data access for raw ingestion and dbt transforms.
+resource "google_bigquery_dataset_iam_member" "runtime_data_editor" {
+  for_each = google_bigquery_dataset.mastr
+
+  project    = var.project_id
+  dataset_id = each.value.dataset_id
+  role       = "roles/bigquery.dataEditor"
+  member     = "serviceAccount:${data.google_service_account.runtime.email}"
 }
 
-resource "google_project_iam_member" "dbt_bigquery_data_editor" {
-  project = var.project_id
-  role    = "roles/bigquery.dataEditor"
-  member  = "serviceAccount:${google_service_account.dbt.email}"
-}
-
-# Bronze bucket object roles observed on the live dbt SA (Step 12A).
-# objectCreator + objectViewer (not objectAdmin); SA cannot storage.buckets.get.
-resource "google_storage_bucket_iam_member" "dbt_bronze_object_creator" {
+# Bronze bucket object roles (not objectAdmin); SA cannot storage.buckets.get.
+resource "google_storage_bucket_iam_member" "runtime_bronze_object_creator" {
   bucket = google_storage_bucket.bronze.name
   role   = "roles/storage.objectCreator"
-  member = "serviceAccount:${google_service_account.dbt.email}"
+  member = "serviceAccount:${data.google_service_account.runtime.email}"
 }
 
-resource "google_storage_bucket_iam_member" "dbt_bronze_object_viewer" {
+resource "google_storage_bucket_iam_member" "runtime_bronze_object_viewer" {
   bucket = google_storage_bucket.bronze.name
   role   = "roles/storage.objectViewer"
-  member = "serviceAccount:${google_service_account.dbt.email}"
+  member = "serviceAccount:${data.google_service_account.runtime.email}"
 }
-
-# Dataset-level OWNER for the dbt SA is intentionally NOT managed here.
-# See README → "Dataset IAM left unmanaged".

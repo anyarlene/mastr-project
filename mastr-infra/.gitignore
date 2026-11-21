@@ -11,6 +11,10 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
+# Saved plans (Phase C+)
+*.tfplan
+tfplan
+
 # Variable files may contain environment-specific values
 *.tfvars
 !terraform.tfvars.example

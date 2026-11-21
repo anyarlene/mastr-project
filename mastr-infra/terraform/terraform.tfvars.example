@@ -1,13 +1,12 @@
 # Copy to terraform.tfvars (gitignored) for local use.
 # cp terraform.tfvars.example terraform.tfvars
 
-project_id = "your-gcp-project-id"
+project_id = "mastr-project-1126"
 region     = "europe-west3"
 
-bronze_bucket_name = "your-bronze-bucket-name"
+bronze_bucket_name = "mastr-project-1126-bronze"
 
-dbt_service_account_id           = "dbt-service-account"
-dbt_service_account_display_name = "dbt Service Account"
+runtime_service_account_id = "mastr-runtime"
 
 bigquery_datasets = [
   "mastr_raw",
@@ -16,5 +15,5 @@ bigquery_datasets = [
   "mastr_marts",
 ]
 
-# Dedicated state bucket — create manually in a later step before remote init.
-tfstate_bucket_name = "wagon-mastr-tfstate-anyarlene-2399"
+# Pre-existing state bucket — not created or managed by this stack.
+tfstate_bucket_name = "mastr-project-1126-tfstate"

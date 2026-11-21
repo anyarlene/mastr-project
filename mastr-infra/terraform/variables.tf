@@ -11,25 +11,19 @@ variable "region" {
 
 variable "bronze_bucket_name" {
   type        = string
-  description = "Existing GCS Bronze bucket name"
-  default     = "your-bronze-bucket-name"
+  description = "GCS Bronze bucket name for MaStR CSV snapshots"
+  default     = "mastr-project-1126-bronze"
 }
 
-variable "dbt_service_account_id" {
+variable "runtime_service_account_id" {
   type        = string
-  description = "Existing service account ID (account_id, not email)"
-  default     = "dbt-service-account"
-}
-
-variable "dbt_service_account_display_name" {
-  type        = string
-  description = "Display name for the dbt service account"
-  default     = "dbt Service Account"
+  description = "Existing runtime service account ID (account_id, not email)"
+  default     = "mastr-runtime"
 }
 
 variable "bigquery_datasets" {
   type        = set(string)
-  description = "Existing MaStR BigQuery dataset IDs to manage"
+  description = "MaStR BigQuery dataset IDs to create"
   default = [
     "mastr_raw",
     "mastr_staging",
@@ -40,6 +34,6 @@ variable "bigquery_datasets" {
 
 variable "tfstate_bucket_name" {
   type        = string
-  description = "Dedicated GCS bucket for Terraform remote state (create later; not managed here yet)"
-  default     = "wagon-mastr-tfstate-anyarlene-2399"
+  description = "Pre-existing GCS bucket for Terraform remote state (not managed by this stack)"
+  default     = "mastr-project-1126-tfstate"
 }

@@ -1,4 +1,4 @@
-# Existing Bronze landing bucket for MaStR CSV snapshots.
+# Bronze landing bucket for MaStR CSV snapshots.
 # Objects inside the bucket are owned by the Python pipeline, not Terraform.
 
 resource "google_storage_bucket" "bronze" {
@@ -7,7 +7,7 @@ resource "google_storage_bucket" "bronze" {
   project                     = var.project_id
   storage_class               = "STANDARD"
   uniform_bucket_level_access = true
-  public_access_prevention    = "inherited"
+  public_access_prevention    = "enforced"
   force_destroy               = false
 
   soft_delete_policy {

@@ -23,12 +23,12 @@ output "bigquery_dataset_ids" {
   value       = sort([for ds in google_bigquery_dataset.mastr : ds.dataset_id])
 }
 
-output "dbt_service_account_email" {
-  description = "Email of the shared MaStR/dbt runtime service account"
-  value       = google_service_account.dbt.email
+output "runtime_service_account_email" {
+  description = "Email of the existing MaStR runtime service account"
+  value       = data.google_service_account.runtime.email
 }
 
 output "tfstate_bucket_name" {
-  description = "Intended remote state bucket name (not created by this stack yet)"
+  description = "Pre-existing remote state bucket name (not managed by this stack)"
   value       = var.tfstate_bucket_name
 }

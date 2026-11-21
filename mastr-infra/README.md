@@ -1,14 +1,17 @@
 # MaStR infrastructure (`mastr-infra`)
 
-Terraform configuration for MaStR GCP resources in the dedicated project
-`mastr-project-1126`, used by:
+Terraform configuration for MaStR GCP resources in a **dedicated project**, used by:
 
 - `mastr-data-pipeline` (Python ingest + dbt)
 - `mastr-airflow` (orchestration)
 
-This stack **creates** MaStR infrastructure in the dedicated project. It must
-not manage, import, or modify unrelated GCP projects (for example training or
-bootcamp projects), their resources, or their credentials.
+This stack **creates** MaStR infrastructure in that dedicated project. It must
+not manage, import, or modify unrelated GCP projects, their resources, or their
+credentials.
+
+Copy [`terraform/terraform.tfvars.sample`](terraform/terraform.tfvars.sample) to
+`terraform.tfvars` (gitignored) and set placeholders such as `project_id`,
+`bronze_bucket_name`, and `tfstate_bucket_name` for your environment.
 
 ## Layout
 
@@ -34,20 +37,24 @@ Flat Terraform layout; no modules.
 
 | Resource | Terraform type |
 |---|---|
-| Bronze bucket `mastr-project-1126-bronze` | `google_storage_bucket.bronze` |
+| Bronze GCS bucket (`bronze_bucket_name`) | `google_storage_bucket.bronze` |
 | Datasets `mastr_raw`, `mastr_staging`, `mastr_intermediate`, `mastr_marts` | `google_bigquery_dataset.mastr` |
-| Dataset roles `bigquery.dataEditor` for `mastr-runtime` | `google_bigquery_dataset_iam_member` |
+| Dataset role `bigquery.dataEditor` for the runtime SA | `google_bigquery_dataset_iam_member` |
 | Bucket roles `storage.objectCreator`, `storage.objectViewer` | `google_storage_bucket_iam_member` |
+
+Product dataset IDs above are the MaStR schema contract. Project id, region,
+bucket names, and runtime service-account id are variables — see
+`terraform.tfvars.sample`.
 
 ## What Terraform does **not** manage
 
-- The existing runtime service account `mastr-runtime` (looked up via data source)
-- Project-level `roles/bigquery.jobUser` on `mastr-runtime` (already granted out-of-band)
+- The existing runtime service account (looked up via data source; default account id `mastr-runtime`)
+- Project-level `roles/bigquery.jobUser` on the runtime SA (granted out-of-band)
 - Service-account private keys / JSON key files
 - GCS objects (Bronze CSVs)
 - BigQuery tables, views, seeds
 - Dataset ACL `access` blocks (see below)
-- The Terraform state bucket `mastr-project-1126-tfstate` (created out-of-band; preserve its security settings)
+- The Terraform state bucket (pre-existing; configured in `backend.tf`; not created here)
 - Unrelated GCP project resources or credentials
 - Airflow Docker / VM runtime
 - Dashboard read-only service account (deferred)
@@ -80,38 +87,45 @@ and is left to the existing out-of-band grant.
 Run Terraform as a **human/operator** GCP user (or a dedicated infra SA) with
 rights to manage the project resources.
 
-Do **not** use `mastr-runtime` as the Terraform operator. That account is the
-pipeline/dbt/Airflow runtime identity only.
+Do **not** use the pipeline runtime service account as the Terraform operator.
+That account is the ingest/dbt/Airflow runtime identity only.
 
-Do **not** change the default gcloud project/account; pass the dedicated
+Do **not** change the default gcloud project/account casually; pass the dedicated
 project via Terraform variables / explicit `--project` flags when verifying.
 
 ## Remote state
 
-Backend (`terraform/backend.tf`):
+Backend configuration lives in `terraform/backend.tf` (GCS backend).
 
-- Bucket: `mastr-project-1126-tfstate` (exclusive to this dedicated project)
+Expected properties of the **pre-existing** state bucket (not managed by this stack):
+
+- Dedicated to this MaStR project (do not reuse unrelated project backends)
 - Prefix: `mastr-infra`
-- Location: `europe-west3`
-- Uniform bucket-level access: enabled
-- Versioning: enabled
-- Soft delete: 7 days (existing bucket setting; not managed here)
-- State locking: provided by the GCS backend
+- Location aligned with the stack region (default `europe-west3`)
+- Uniform bucket-level access and versioning enabled
+- State locking via the GCS backend
 - Access: operators only — **not** the runtime SA
 
-This stack does not create or modify the state bucket. Do not copy or migrate
-state from unrelated project backends.
+Document the bucket name you use in `terraform.tfvars` as `tfstate_bucket_name`
+(see `terraform.tfvars.sample`). Align `backend.tf` with that dedicated bucket
+before `terraform init`. Do not copy or migrate state from unrelated projects.
 
-## Local setup (after approval)
+## Local setup
 
 ```bash
-cd terraform
-cp terraform.tfvars.sample terraform.tfvars   # if needed
-# terraform init    # only after Phase C approval
+cd mastr-infra/terraform
+cp terraform.tfvars.sample terraform.tfvars
+# Edit placeholders: project_id, bronze_bucket_name, tfstate_bucket_name, …
+# Ensure backend.tf points at your dedicated state bucket.
+# terraform init
 # terraform validate
 # terraform plan -out=tfplan
-# terraform apply tfplan   # only after Phase D approval
+# terraform apply tfplan
 ```
+
+Pipeline and Airflow runtime settings use the same conceptual variables via
+component `.env.sample` files (`GCP_PROJECT_ID`, `GCS_BUCKET`, `BQ_DATASET`,
+`BQ_LOCATION`).
 
 ## Separation of concerns
 
@@ -119,6 +133,7 @@ cp terraform.tfvars.sample terraform.tfvars   # if needed
 |---|---|
 | Terraform (`mastr-infra`) | Bronze bucket, datasets, dataset/bucket IAM |
 | Python | Ingest Bronze + load Raw |
-| dbt | Transform + test |
-| Airflow | Orchestrate DAG runs |
+| dbt | Transform + test (including snapshot CDC models) |
+| Airflow | Orchestrate manual DAG runs |
 | Docker | Local Airflow containers |
+| Streamlit dashboard | Read-only Gold exploration (not provisioned here) |

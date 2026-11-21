@@ -1,0 +1,96 @@
+# Le Wagon–style LocalExecutor stack.
+# Pipeline source is mounted from the sibling repo; dependencies come from the
+# image's isolated /opt/venvs/mastr-pipeline (not the host Poetry .venv).
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d airflow -U airflow || exit 1"]
+      interval: 15s
+      retries: 5
+    ports:
+      - "5433:5432"
+    restart: always
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: poetry run airflow scheduler
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment: &airflow-env
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW_PROJECT: /opt/airflow-project
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${POSTGRES_PASSWORD}@postgres:5432/airflow
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
+      MASTR_PIPELINE_DIR: /opt/mastr-data-pipeline
+      PIPELINE_VENV: /opt/venvs/mastr-pipeline
+      MASTR_RAW_DIR: /opt/mastr-data-pipeline/data/raw
+      DBT_PROFILES_DIR: /home/YOUR_USER/.dbt
+      GOOGLE_APPLICATION_CREDENTIALS: /home/YOUR_USER/.gcp_keys/dbt-service-account.json
+      # Pipeline get_settings() required vars (values from env_file / host .env)
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+      GCS_BUCKET: ${GCS_BUCKET}
+      BQ_DATASET: ${BQ_DATASET:-mastr_raw}
+      BQ_LOCATION: ${BQ_LOCATION:-europe-west3}
+    volumes: &airflow-volumes
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      # Sibling pipeline (code + data/raw + seed write-back). Do NOT mount host .venv.
+      - ../mastr-data-pipeline:/opt/mastr-data-pipeline
+      # Preserve absolute credential / profile paths used by existing dbt profiles.yml
+      - ${GCP_KEYS_HOST_PATH}:/home/YOUR_USER/.gcp_keys:ro
+      - ${DBT_PROFILES_HOST_PATH}:/home/YOUR_USER/.dbt:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "poetry run airflow jobs check --job-type SchedulerJob --local || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: poetry run scripts/entrypoint.sh
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      scheduler:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      <<: *airflow-env
+      AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-admin}
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
+      AIRFLOW_ADMIN_EMAIL: ${AIRFLOW_ADMIN_EMAIL:-admin@example.com}
+    volumes: *airflow-volumes
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 90s

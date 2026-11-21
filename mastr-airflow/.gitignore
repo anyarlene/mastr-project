@@ -1,0 +1,30 @@
+# credentials and secrets
+.env
+.env.*
+!.env.sample
+!.env.example
+*.pem
+*.key
+**/credentials*.json
+**/*service*account*.json
+
+# Airflow local runtime
+logs/
+database/
+airflow.cfg
+airflow.db
+webserver_config.py
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+test_output.txt
+dist/
+*.egg-info/
+
+# agent directories
+.cursor/
+.claude/
+.agent/

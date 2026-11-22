@@ -86,7 +86,7 @@ The full workflow is also orchestrated by [Apache Airflow](../mastr-airflow/READ
 
 ## Data Model
 
-![MaStR Gold data model](mastr-data-pipeline/docs/data-model.svg)
+![MaStR Gold data model](docs/data-model.svg)
 
 BigQuery datasets:
 

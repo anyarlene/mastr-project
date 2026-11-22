@@ -1,12 +1,13 @@
-# Remote state backend (GCS).
+# Remote state backend (GCS) — partial configuration.
 #
-# State lives only in the dedicated MaStR project bucket.
+# The state bucket name is supplied at `terraform init` via
+# `-backend-config=bucket=...` or a local `backend.hcl` (gitignored).
+# Prefix stays in-repo as the MaStR product contract.
 # Do not point this backend at any bootcamp / Le Wagon state bucket.
 # Do not copy or migrate old Terraform state.
 
 terraform {
   backend "gcs" {
-    bucket = "mastr-project-1126-tfstate"
     prefix = "mastr-infra"
   }
 }

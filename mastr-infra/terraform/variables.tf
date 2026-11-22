@@ -12,7 +12,6 @@ variable "region" {
 variable "bronze_bucket_name" {
   type        = string
   description = "GCS Bronze bucket name for MaStR CSV snapshots"
-  default     = "mastr-project-1126-bronze"
 }
 
 variable "runtime_service_account_id" {
@@ -35,5 +34,4 @@ variable "bigquery_datasets" {
 variable "tfstate_bucket_name" {
   type        = string
   description = "Pre-existing GCS bucket for Terraform remote state (not managed by this stack)"
-  default     = "mastr-project-1126-tfstate"
 }

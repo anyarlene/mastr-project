@@ -43,8 +43,9 @@ Flat Terraform layout; no modules.
 | Bucket roles `storage.objectCreator`, `storage.objectViewer` | `google_storage_bucket_iam_member` |
 
 Product dataset IDs above are the MaStR schema contract. Project id, region,
-bucket names, and runtime service-account id are variables — see
-`terraform.tfvars.sample`.
+Bronze bucket name, and runtime service-account id are variables — see
+`terraform.tfvars.sample`. The GCS **state** bucket is not a Terraform variable
+for the backend; it is supplied at `terraform init` (see Remote state).
 
 ## What Terraform does **not** manage
 
@@ -54,7 +55,8 @@ bucket names, and runtime service-account id are variables — see
 - GCS objects (Bronze CSVs)
 - BigQuery tables, views, seeds
 - Dataset ACL `access` blocks (see below)
-- The Terraform state bucket (pre-existing; configured in `backend.tf`; not created here)
+- The Terraform state bucket (pre-existing; selected at `terraform init` via
+  `-backend-config`; not created or managed by this stack)
 - Unrelated GCP project resources or credentials
 - Airflow Docker / VM runtime
 - Dashboard read-only service account (deferred)
@@ -95,32 +97,60 @@ project via Terraform variables / explicit `--project` flags when verifying.
 
 ## Remote state
 
-Backend configuration lives in `terraform/backend.tf` (GCS backend).
+`terraform/backend.tf` declares a **partial** GCS backend: type `gcs` and
+prefix `mastr-infra` only. The state **bucket** is supplied at initialization
+with `-backend-config=bucket=...` (or an equivalent local `backend.hcl` /
+`*.backend.hcl`, both gitignored). Terraform backends cannot read `var.*`.
+
+`tfstate_bucket_name` in `terraform.tfvars` is **informational** only: it is
+echoed as an output and documents which bucket you intend to use. It does
+**not** configure the remote backend. Keep that value aligned with the bucket
+you pass to `terraform init`.
 
 Expected properties of the **pre-existing** state bucket (not managed by this stack):
 
 - Dedicated to this MaStR project (do not reuse unrelated project backends)
-- Prefix: `mastr-infra`
+- Prefix: `mastr-infra` (fixed in `backend.tf`)
 - Location aligned with the stack region (default `europe-west3`)
 - Uniform bucket-level access and versioning enabled
 - State locking via the GCS backend
 - Access: operators only — **not** the runtime SA
 
-Document the bucket name you use in `terraform.tfvars` as `tfstate_bucket_name`
-(see `terraform.tfvars.sample`). Align `backend.tf` with that dedicated bucket
-before `terraform init`. Do not copy or migrate state from unrelated projects.
+Do not copy or migrate state from unrelated projects. Do not change the prefix
+or point init at a different bucket unless you intentionally relocate state.
 
 ## Local setup
+
+**New environment** (create the state bucket out-of-band first):
 
 ```bash
 cd mastr-infra/terraform
 cp terraform.tfvars.sample terraform.tfvars
 # Edit placeholders: project_id, bronze_bucket_name, tfstate_bucket_name, …
-# Ensure backend.tf points at your dedicated state bucket.
-# terraform init
+# terraform init -backend-config="bucket=your-tfstate-bucket-name"
 # terraform validate
 # terraform plan -out=tfplan
 # terraform apply tfplan
+```
+
+Optional local backend file (gitignored):
+
+```bash
+# backend.hcl — do not commit
+# bucket = "your-tfstate-bucket-name"
+# terraform init -backend-config=backend.hcl
+```
+
+**Existing environment** (already using remote state under prefix `mastr-infra`):
+keep `terraform.tfvars` unchanged and re-init with the **same** state bucket.
+Prefer `-reconfigure` so Terraform updates local backend settings without a
+migrate prompt. Do **not** use `-migrate-state` unless you are intentionally
+moving state to a new bucket or prefix.
+
+```bash
+cd mastr-infra/terraform
+# terraform init -reconfigure -backend-config="bucket=your-tfstate-bucket-name"
+# terraform plan   # expect no resource changes if vars are unchanged
 ```
 
 Pipeline and Airflow runtime settings use the same conceptual variables via

@@ -20,6 +20,10 @@ tfplan
 !terraform.tfvars.sample
 !*.tfvars.sample
 
+# Partial backend config (bucket name supplied at init; never commit)
+backend.hcl
+*.backend.hcl
+
 # Credentials and keys
 .env
 .env.*

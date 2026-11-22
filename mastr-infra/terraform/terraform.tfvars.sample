@@ -15,5 +15,7 @@ bigquery_datasets = [
   "mastr_marts",
 ]
 
-# Pre-existing state bucket — not created or managed by this stack.
+# Informational only: documents / outputs the state bucket name.
+# Does NOT configure the GCS backend — pass the same name at init via
+# `-backend-config=bucket=...` or a local `backend.hcl` (see README).
 tfstate_bucket_name = "your-tfstate-bucket-name"

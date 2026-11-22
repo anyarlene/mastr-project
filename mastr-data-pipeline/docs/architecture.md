@@ -53,6 +53,6 @@ Snapshot CDC compares consecutive complete snapshots marked `all_statuses` in `c
 
 ## Data Model
 
-![MaStR Gold schema](schema.svg)
+![MaStR Gold schema](data-model.svg)
 
 For execution instructions, see the [Data Pipeline README](../README.md).

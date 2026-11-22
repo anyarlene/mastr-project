@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Webserver entrypoint (Le Wagon style): migrate metadata DB, ensure admin user, start UI.
+# Webserver entrypoint: migrate metadata DB, ensure admin user, start UI.
 set -euo pipefail
 
 cd "${AIRFLOW_PROJECT:-/opt/airflow-project}"

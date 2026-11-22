@@ -1,7 +1,7 @@
 [project]
 name = "mastr-dashboard"
 version = "0.1.0"
-description = "Streamlit PoC dashboard for MaStR capacity in Potsdam-Mittelmark"
+description = "Streamlit visualization for MaStR capacity in Potsdam-Mittelmark"
 authors = [
     {name = "Any-Arlene Niyubahwe", email = "61238244+anyarlene@users.noreply.github.com"}
 ]

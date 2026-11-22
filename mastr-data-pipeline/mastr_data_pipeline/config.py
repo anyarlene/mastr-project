@@ -30,7 +30,7 @@ def get_settings() -> Settings:
       - BQ_LOCATION
 
     Optional:
-      - GOOGLE_APPLICATION_CREDENTIALS (ADC / service-account key path)
+      - GOOGLE_APPLICATION_CREDENTIALS (prefer unset; use keyless ADC)
     """
     project_id = os.environ.get("GCP_PROJECT_ID", "").strip()
     bucket = os.environ.get("GCS_BUCKET", "").strip()

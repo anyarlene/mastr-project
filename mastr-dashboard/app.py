@@ -1,4 +1,4 @@
-"""MaStR capacity overview dashboard (Streamlit PoC)."""
+"""MaStR capacity overview dashboard (Streamlit visualization)."""
 
 from __future__ import annotations
 

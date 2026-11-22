@@ -12,10 +12,12 @@ import utils.bigquery as bq
 # Placeholder usernames allowed in samples; reject any other /home/<name> path.
 _ALLOWED_HOME_USERS = frozenset({"YOUR_USER"})
 _HOME_USER_RE = re.compile(r"/home/([A-Za-z0-9._-]+)")
-_LEGACY_KEY_PATH_RE = re.compile(
+# Reject service-account JSON key paths and common private-key filenames.
+_UNSAFE_CREDENTIAL_PATH_RE = re.compile(
     r"(?:~|/home/[A-Za-z0-9._-]+)/\.gcp_keys(?:/|\b)|dbt-service-account\.json"
 )
-_LEGACY_BOOTCAMP_PROJECT_RE = re.compile(r"wagon-bootcamp-[A-Za-z0-9._-]+")
+# Stand-in non-placeholder project id that must not appear in samples or SQL.
+_FORBIDDEN_SAMPLE_PROJECT_ID = "test-mastr-project"
 
 
 def setup_function() -> None:
@@ -111,7 +113,7 @@ def test_sql_builders_use_configured_project_and_dataset(monkeypatch) -> None:
 
     assert len(captured) == 2
     assert all("sql-project-xyz.mastr_marts." in sql for sql in captured)
-    assert all(_LEGACY_BOOTCAMP_PROJECT_RE.search(sql) is None for sql in captured)
+    assert all(_FORBIDDEN_SAMPLE_PROJECT_ID not in sql for sql in captured)
     assert "mart_municipality_capacity" in captured[0]
     assert "fct_mastr_units" in captured[1]
     assert "dim_energy_source" in captured[1]
@@ -120,7 +122,7 @@ def test_sql_builders_use_configured_project_and_dataset(monkeypatch) -> None:
     assert "f.municipality_id = m.municipality_id" in captured[1]
 
 
-def test_dashboard_files_have_no_legacy_auth_or_personal_paths() -> None:
+def test_dashboard_files_have_no_unsafe_auth_or_personal_paths() -> None:
     root = bq.Path(__file__).resolve().parents[1]
     targets = [
         root / "utils" / "bigquery.py",
@@ -131,17 +133,14 @@ def test_dashboard_files_have_no_legacy_auth_or_personal_paths() -> None:
         "from_service_account_json",
         "dbt-service-account.json",
         "~/.gcp_keys/",
-        "test-mastr-project",
+        _FORBIDDEN_SAMPLE_PROJECT_ID,
     )
     for path in targets:
         text = path.read_text(encoding="utf-8")
         label = path.name
         for needle in forbidden_literals:
             assert needle not in text, f"{needle!r} found in {label}"
-        assert _LEGACY_KEY_PATH_RE.search(text) is None, (
-            f"legacy service-account key path found in {label}"
-        )
-        assert _LEGACY_BOOTCAMP_PROJECT_RE.search(text) is None, (
-            f"legacy bootcamp project id found in {label}"
+        assert _UNSAFE_CREDENTIAL_PATH_RE.search(text) is None, (
+            f"unsafe service-account key path found in {label}"
         )
         _assert_no_hardcoded_personal_homes(text, label=label)

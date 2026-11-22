@@ -67,7 +67,7 @@ For a fuller stage-by-stage status table, see [mastr-data-pipeline/docs/architec
 | [`mastr-data-pipeline/`](mastr-data-pipeline/) | Python package, Data Contract, GCS Bronze upload, BigQuery Raw load, dbt models/tests/seeds, data docs |
 | [`mastr-airflow/`](mastr-airflow/) | Airflow Docker Compose stack and DAG that orchestrates the pipeline (no business SQL) |
 | [`mastr-infra/`](mastr-infra/) | Terraform for Bronze bucket, BigQuery datasets, and additive runtime IAM |
-| [`mastr-dashboard/`](mastr-dashboard/) | Streamlit PoC: Gold KPIs, charts, and choropleth map |
+| [`mastr-dashboard/`](mastr-dashboard/) | Streamlit visualization: Gold KPIs, charts, and choropleth map |
 
 Each application component keeps its own Poetry environment, Makefile (where present), and README. Credentials and dbt profiles stay outside the repository under the operator home directory.
 
@@ -120,7 +120,7 @@ Do not commit `.env`, `terraform.tfvars`, or credential files.
 - Snapshot CDC models (`int_mastr_unit_cdc`, `fct_mastr_unit_changes`) for eligible complete pairs
 - Airflow DAG: local CSV check → Bronze → Raw → seed generation → dbt seed/run/test (manual trigger)
 - Terraform for Bronze GCS bucket, MaStR BigQuery datasets, and additive runtime IAM
-- Streamlit PoC: municipality capacity KPIs/charts and map joined to Geobasis BB GeoJSON (`krss=12069`)
+- Streamlit visualization: municipality capacity KPIs/charts and map joined to Geobasis BB GeoJSON (`krss=12069`)
 
 **Limitations / not in scope yet**
 
@@ -128,7 +128,7 @@ Do not commit `.env`, `terraform.tfvars`, or credential files.
 - No production Airflow schedule or CI/CD deployment automation in this repository
 - SCD Type 2 historization is deferred (multi-snapshot fact + CDC models are the current approach)
 - CDC fact is empty until at least two eligible complete `all_statuses` snapshots are loaded and transformed
-- Dashboard is a local proof of concept, not a production deployment
+- Dashboard is a local Streamlit visualization; production deployment is not implemented
 - Terraform does not manage service-account keys, Bronze objects, BigQuery table DDL, Airflow runtime, or a dedicated dashboard read-only identity
 
 ## License

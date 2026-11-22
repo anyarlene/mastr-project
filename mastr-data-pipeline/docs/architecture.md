@@ -76,7 +76,7 @@ flowchart TB
 | `mastr-data-pipeline` | Data product | CSV snapshots (gitignored), Python ingestion package, dbt models/tests/seeds, data docs |
 | `mastr-airflow` | Orchestration only | DAG that triggers ingestion, BigQuery loads, dbt, and tests; `package-mode = false` |
 | `mastr-infra` | GCP provisioning | Terraform for Bronze bucket, BigQuery datasets, additive runtime IAM |
-| `mastr-dashboard` | BI PoC | Streamlit read-only Gold views + Geobasis BB map |
+| `mastr-dashboard` | Visualization | Streamlit read-only Gold views + Geobasis BB map (local; not production-deployed) |
 
 Airflow does **not** own transformation SQL. dbt does **not** schedule itself.
 
@@ -213,7 +213,7 @@ latest_complete_snapshot_date =
 | dbt Staging, Intermediate, Marts + tests | Dedicated dashboard read-only identity (infra) | |
 | Completeness helpers + snapshot CDC models | | |
 | Terraform Bronze bucket + datasets + additive IAM | | |
-| Streamlit Gold PoC + Geobasis BB map | | |
+| Streamlit Gold visualization + Geobasis BB map (local) | | |
 
 ---
 

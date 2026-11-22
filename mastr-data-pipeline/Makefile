@@ -5,7 +5,7 @@ DBT_PROJECT_DIR := dbt
 DBT_PROFILES_DIR := $(HOME)/.dbt
 
 install:
-	poetry install
+	poetry install --with dbt
 
 format:
 	poetry run black .

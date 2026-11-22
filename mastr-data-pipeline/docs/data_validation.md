@@ -190,7 +190,7 @@ Municipality-level capacity reporting must filter to `snapshot_date = latest_com
 
 ## Dimensional model (summary)
 
-Le Wagon-style star schema — see `docs/schema.dbml`:
+Dimensional star schema — see `docs/schema.dbml`:
 
 | Table | Type | Grain |
 |---|---|---|

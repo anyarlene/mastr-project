@@ -1,8 +1,8 @@
-# MaStR Dashboard (Streamlit PoC)
+# MaStR Dashboard (Streamlit visualization)
 
-Proof-of-concept Streamlit dashboard for operational renewable generation and storage capacity across **38 municipalities in Potsdam-Mittelmark** (Brandenburg).
+Streamlit visualization component for operational renewable generation and storage capacity across **38 municipalities in Potsdam-Mittelmark** (Brandenburg).
 
-Data is read **read-only** from BigQuery Gold tables (dataset `mastr_marts` by default). Set `GCP_PROJECT_ID` and `BQ_LOCATION` in `.env` (see `.env.sample`). Optional: `BQ_MARTS_DATASET` to override the Gold dataset name.
+Data is read **read-only** from BigQuery Gold tables (dataset `mastr_marts` by default). The UI requires a live BigQuery project configured via `GCP_PROJECT_ID` and `BQ_LOCATION` in `.env` (see `.env.sample`). Optional: `BQ_MARTS_DATASET` to override the Gold dataset name.
 
 ## Features
 
@@ -44,7 +44,7 @@ A separate MaStR ADC **path** only isolates which credentials file is loaded. It
 
 Do **not** run `gcloud auth application-default login` solely for this dashboard if that would replace an existing default ADC you still need. If you already have a suitable already-impersonated ADC, copy it into the MaStR path above.
 
-Do **not** create or mount service-account private keys for this PoC.
+Do **not** create or mount service-account private keys for this local dashboard.
 
 ## Install
 
@@ -85,6 +85,7 @@ Join key for the map: Gold `municipality_id` = GeoJSON property `ags`.
 
 ## Notes
 
-- This is a local PoC, not a production deployment.
-- CDC change fact (`fct_mastr_unit_changes`) is currently empty and not charted.
+- Implemented as a **local** Streamlit app; production hosting and deployment are not implemented.
+- Requires live BigQuery access to Gold tables at runtime.
+- CDC change fact (`fct_mastr_unit_changes`) is not charted yet (fact is empty until eligible snapshot pairs exist).
 - Do not commit credentials or `.env` files.

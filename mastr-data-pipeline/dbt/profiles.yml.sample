@@ -1,5 +1,5 @@
 # Sample dbt profile for MaStR. Merge the `mastr` block into ~/.dbt/profiles.yml.
-# Do not replace existing profiles (e.g. dbt_lewagon).
+# Do not replace or overwrite unrelated profiles already present in that file.
 #
 # Keyless authentication (dedicated MaStR GCP project):
 #   method: oauth  → Application Default Credentials (ADC)
@@ -19,13 +19,14 @@
 #
 # Required environment variables (from the repo .env or shell):
 #   GCP_PROJECT_ID                  e.g. your dedicated GCP project id
+#   BQ_LOCATION                     e.g. europe-west3 (matches pipeline .env)
 #   DBT_IMPERSONATE_SERVICE_ACCOUNT e.g. runtime-sa@PROJECT_ID.iam.gserviceaccount.com
+#                                   (approach B only)
 #
 # Dataset architecture (do not change):
 #   default dataset = mastr_staging (seeds + staging views)
 #   intermediate / marts use model-level +schema
 #   (mastr_intermediate / mastr_marts) via generate_schema_name
-#   location = europe-west3
 
 mastr:
   target: dev
@@ -35,7 +36,7 @@ mastr:
       method: oauth
       project: "{{ env_var('GCP_PROJECT_ID') }}"
       dataset: mastr_staging
-      location: europe-west3
+      location: "{{ env_var('BQ_LOCATION', 'europe-west3') }}"
       # Approach B only — remove this key when using approach A.
       impersonate_service_account: "{{ env_var('DBT_IMPERSONATE_SERVICE_ACCOUNT') }}"
       threads: 4

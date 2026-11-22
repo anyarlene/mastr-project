@@ -21,10 +21,13 @@ services:
       - "5433:5432"
     restart: always
 
+  # scheduler + webserver share one image tag (built once).
   scheduler:
+    image: mastr-airflow:local
     build:
       context: .
       dockerfile: Dockerfile
+      target: runtime
     command: poetry run airflow scheduler
     restart: on-failure
     depends_on:
@@ -71,9 +74,11 @@ services:
       start_period: 60s
 
   webserver:
+    image: mastr-airflow:local
     build:
       context: .
       dockerfile: Dockerfile
+      target: runtime
     command: poetry run scripts/entrypoint.sh
     restart: on-failure
     depends_on:

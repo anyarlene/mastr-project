@@ -130,3 +130,7 @@ Do not commit `.env`, `terraform.tfvars`, or credential files.
 - CDC fact is empty until at least two eligible complete `all_statuses` snapshots are loaded and transformed
 - Dashboard is a local proof of concept, not a production deployment
 - Terraform does not manage service-account keys, Bronze objects, BigQuery table DDL, Airflow runtime, or a dedicated dashboard read-only identity
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

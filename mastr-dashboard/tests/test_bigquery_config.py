@@ -131,7 +131,7 @@ def test_dashboard_files_have_no_legacy_auth_or_personal_paths() -> None:
         "from_service_account_json",
         "dbt-service-account.json",
         "~/.gcp_keys/",
-        "mastr-project-1126",
+        "test-mastr-project",
     )
     for path in targets:
         text = path.read_text(encoding="utf-8")

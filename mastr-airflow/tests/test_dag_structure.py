@@ -117,6 +117,6 @@ def test_compose_uses_keyless_adc_and_portable_paths():
     assert "GCP_KEYS_HOST_PATH" not in env_sample
     assert "GOOGLE_APPLICATION_CREDENTIALS=" not in env_sample
     assert "your-gcp-project-id" in env_sample
-    assert "mastr-project-1126" not in env_sample
+    assert "test-mastr-project" not in env_sample
     assert "dbt-service-account.json" not in env_sample
     _assert_no_hardcoded_personal_homes(env_sample, label=".env.sample")

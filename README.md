@@ -42,7 +42,7 @@ flowchart LR
 
 ## Data Model
 
-![MaStR Gold data model](mastr-data-pipeline/docs/schema.svg)
+![MaStR Gold data model](mastr-data-pipeline/docs/data-model.svg)
 
 Data flows through **Bronze → Raw → Staging → Intermediate → Gold**, producing municipality-level renewable energy and battery storage metrics.
 

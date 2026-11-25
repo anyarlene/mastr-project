@@ -46,6 +46,12 @@ flowchart LR
 
 Data flows through **Bronze → Raw → Staging → Intermediate → Gold**, producing municipality-level renewable energy and battery storage metrics.
 
+## Deployment Options
+
+The current architecture uses Airflow on Compute Engine.
+
+See [Deployment Architecture Options](mastr-data-pipeline/docs/deployment_options.md).
+
 ## Getting Started
 
 Each component has its own setup instructions:

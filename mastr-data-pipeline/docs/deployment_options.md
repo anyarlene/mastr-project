@@ -48,14 +48,18 @@ flowchart TD
 | Criteria | Airflow on GCP VM | Cloud Scheduler + Cloud Run Jobs |
 |---|---|---|
 | Infrastructure | Compute Engine | Serverless |
-| Execution | Always-on VM | On demand |
+| Execution | VM-based | On demand |
 | Orchestration | Airflow DAG | Scheduler + execution logic |
 | Monitoring | Airflow UI | Cloud Logging |
 | Scalability | VM-dependent | Managed |
+| Reproducibility | Docker Compose + Terraform | Container images + Terraform |
 | Maintenance | Higher | Lower |
-| Implementation effort | Low | Moderate |
+| Implementation effort (from scratch) | Higher | Lower |
+| Migration effort (current project) | Minimal | Moderate |
 | Retry management | Task-level | Job-level |
-| Cost model | Provisioned resources | Resource consumption |
+| Cost model | VM uptime and allocated resources | Execution duration and resource consumption |
+
+Implementation and migration effort are theoretical estimates based on the current project architecture.
 
 
 | Architecture | Cost Assumptions |

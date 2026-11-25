@@ -50,7 +50,7 @@ Data flows through **Bronze → Raw → Staging → Intermediate → Gold**, pro
 
 The current architecture uses Airflow on Compute Engine.
 
-See [Deployment Architecture Options](mastr-data-pipeline/docs/deployment_options.md).
+[How does it compare to a serverless alternative?](mastr-data-pipeline/docs/deployment_options.md)
 
 ## Getting Started
 
